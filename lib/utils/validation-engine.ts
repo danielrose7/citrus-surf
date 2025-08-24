@@ -8,10 +8,9 @@
  */
 
 import type {
-  ValidationRule,
   ValidationRuleType,
+  ValidationSeverity,
   ValidationResult,
-  ValidationWarning,
   ValidationState,
   ValidationContext,
   SuggestedFix,
@@ -251,6 +250,7 @@ export class ValidationEngine {
         result.errors.push({
           ruleId: rule.id,
           ruleType: rule.type,
+          severity: ValidationSeverity.ERROR,
           message: `Validation rule failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
           fieldName: field.name,
           currentValue: value,

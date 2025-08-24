@@ -78,6 +78,8 @@ export interface ValidationError {
   ruleId: string;
   /** Type of validation rule */
   ruleType: ValidationRuleType;
+  /** Severity level of the validation error */
+  severity: ValidationSeverity;
   /** Human-readable error message */
   message: string;
   /** Field name where the error occurred */

@@ -72,6 +72,8 @@ export interface TargetField {
   id: string;
   /** Field name that corresponds to data column names */
   name: string;
+  /** Human-readable display name for UI presentation */
+  displayName?: string;
   /** The data type that determines validation and processing behavior */
   type: FieldType;
   /** Whether this field must have a non-empty value */

@@ -9,6 +9,7 @@
 
 // Core validation rules
 export { RequiredFieldRule } from "./required-field-rule";
+export { DataTypeRule } from "./data-type-rule";
 
 // Re-export validation engine components for convenience
 export {

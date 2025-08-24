@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { ValidationEngine, BaseValidationRule } from "./validation-engine";
 import {
   ValidationRuleType,
+  ValidationSeverity,
   createEmptyValidationResult,
   type ValidationResult,
   type ValidationContext,
@@ -23,6 +24,7 @@ class FastRequiredRule extends BaseValidationRule {
       result.errors.push({
         ruleId: this.id,
         ruleType: this.type,
+        severity: ValidationSeverity.ERROR,
         message: `${field.name} is required`,
         fieldName: field.name,
         currentValue: value,
@@ -55,6 +57,7 @@ class FastTypeRule extends BaseValidationRule {
       result.errors.push({
         ruleId: this.id,
         ruleType: this.type,
+        severity: ValidationSeverity.ERROR,
         message: `Invalid type for ${field.name}`,
         fieldName: field.name,
         currentValue: value,

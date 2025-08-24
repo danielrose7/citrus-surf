@@ -31,6 +31,7 @@ class MockRequiredFieldRule extends BaseValidationRule {
       result.errors.push({
         ruleId: this.id,
         ruleType: this.type,
+        severity: ValidationSeverity.ERROR,
         message: `${field.name} is required but is empty`,
         fieldName: field.name,
         currentValue: value,
@@ -66,6 +67,7 @@ class MockTypeValidationRule extends BaseValidationRule {
       result.errors.push({
         ruleId: this.id,
         ruleType: this.type,
+        severity: ValidationSeverity.ERROR,
         message: `${field.name} must be a number, got ${typeof value}`,
         fieldName: field.name,
         currentValue: value,

@@ -9,11 +9,13 @@
 
 import type {
   ValidationRuleType,
-  ValidationSeverity,
   ValidationResult,
   ValidationState,
   ValidationContext,
   SuggestedFix,
+} from "../types/validation";
+import {
+  ValidationSeverity,
 } from "../types/validation";
 import type { TargetField, TargetShape } from "../types/target-shapes";
 import type { TableRow } from "../features/tableSlice";

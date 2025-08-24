@@ -94,6 +94,12 @@ export interface ValidationError {
     confidence?: number;
     /** Additional context about the error */
     context?: Record<string, any>;
+    /** Expected type for type validation errors */
+    expectedType?: string;
+    /** Actual type that was encountered */
+    actualType?: string;
+    /** Zod error details for schema validation */
+    zodError?: any;
   };
 }
 
@@ -164,6 +170,17 @@ export interface ValidationResult {
     duration?: number;
     /** Number of rules that were applied */
     rulesApplied?: number;
+    /** Type conversion information if applicable */
+    typeConversion?: {
+      /** Whether type conversion was performed */
+      performed: boolean;
+      /** Original value before conversion */
+      originalValue: any;
+      /** Value after conversion */
+      convertedValue: any;
+      /** Method used for conversion */
+      method: string;
+    };
   };
 }
 

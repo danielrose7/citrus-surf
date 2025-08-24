@@ -295,7 +295,28 @@ export function LookupEditableCell({
 
   // Render display value with lookup information
   const renderDisplay = () => {
-    // Check if reference data is missing and show a warning
+    // Check if reference data is missing and show value with warning
+    if (referenceData.length === 0 && initialValue) {
+      return (
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1">
+            <span title={`Value: ${initialValue}`}>
+              {initialValue}
+            </span>
+            <AlertCircle className="h-3 w-3 text-destructive" title={`Warning: Reference data missing for ${lookupField.referenceFile}`} />
+          </div>
+          {lookupField.showReferenceInfo && (
+            <ReferenceInfoPopup
+              referenceInfo={referenceInfo}
+              referenceData={referenceData}
+              lookupField={lookupField}
+            />
+          )}
+        </div>
+      );
+    }
+
+    // If no reference data AND no value, show missing data message
     if (referenceData.length === 0) {
       return (
         <div className="flex items-center justify-between">

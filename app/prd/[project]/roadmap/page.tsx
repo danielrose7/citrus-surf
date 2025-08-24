@@ -1,18 +1,30 @@
 import fs from "fs";
 import path from "path";
 import { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-export const metadata: Metadata = {
-  title: "Lookup Fields Roadmap - Citrus Surf",
-  description: "Implementation roadmap for lookup fields feature",
+type Props = {
+  params: { project: string };
 };
 
-function readMarkdownFile(filePath: string): string {
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const projectName = params.project
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
+  return {
+    title: `${projectName} Roadmap - Citrus Surf`,
+    description: `Implementation roadmap for ${projectName.toLowerCase()} feature`,
+  };
+}
+
+function readMarkdownFile(filePath: string): string | null {
   try {
     const fullPath = path.join(process.cwd(), "prd", filePath);
     return fs.readFileSync(fullPath, "utf8");
   } catch {
-    return "# File not found\n\nThe requested file could not be found.";
+    return null;
   }
 }
 
@@ -92,8 +104,15 @@ function formatMarkdown(content: string): string {
   );
 }
 
-export default function LookupFieldsRoadmap() {
-  const content = readMarkdownFile("lookup-fields/roadmap.md");
+export default function ProjectRoadmap({ params }: Props) {
+  const { project } = params;
+  
+  // Try to read the roadmap file for the given project
+  const content = readMarkdownFile(`${project}/roadmap.md`);
+  
+  if (!content) {
+    notFound();
+  }
 
   return (
     <div className="prose prose-lg max-w-none">

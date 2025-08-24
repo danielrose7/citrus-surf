@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import Link from "next/link";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -14,6 +15,53 @@ function readMarkdownFile(filePath: string): string {
     return fs.readFileSync(fullPath, "utf8");
   } catch {
     return "# File not found\n\nThe requested file could not be found.";
+  }
+}
+
+function getAvailableProjects(): Array<{ name: string; displayName: string; description: string }> {
+  const prdPath = path.join(process.cwd(), "prd");
+  
+  try {
+    const items = fs.readdirSync(prdPath, { withFileTypes: true });
+    const projects: Array<{ name: string; displayName: string; description: string }> = [];
+    
+    for (const item of items) {
+      if (item.isDirectory()) {
+        const projectPath = path.join(prdPath, item.name);
+        const prdFile = path.join(projectPath, "prd.md");
+        
+        // Only include projects that have a prd.md file
+        if (fs.existsSync(prdFile)) {
+          const displayName = item.name
+            .split('-')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+          
+          // Try to extract description from the PRD file
+          let description = "Product requirements and implementation guide";
+          try {
+            const prdContent = fs.readFileSync(prdFile, "utf8");
+            const descriptionMatch = prdContent.match(/^## Overview\s+(.+?)(?=\n\n|\n##|$)/ms);
+            if (descriptionMatch) {
+              description = descriptionMatch[1].trim().replace(/\n/g, ' ').substring(0, 150);
+              if (description.length === 150) description += "...";
+            }
+          } catch {
+            // Use default description if we can't read the file
+          }
+          
+          projects.push({
+            name: item.name,
+            displayName,
+            description,
+          });
+        }
+      }
+    }
+    
+    return projects.sort((a, b) => a.displayName.localeCompare(b.displayName));
+  } catch {
+    return [];
   }
 }
 
@@ -74,6 +122,7 @@ function formatMarkdown(content: string): string {
 
 export default function PRDOverview() {
   const content = readMarkdownFile("README.md");
+  const projects = getAvailableProjects();
 
   return (
     <div className="prose prose-lg max-w-none">
@@ -82,6 +131,33 @@ export default function PRDOverview() {
           __html: formatMarkdown(content),
         }}
       />
+      
+      {projects.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-gray-100">
+            Available Project PRDs
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {projects.map((project) => (
+              <Link
+                key={project.name}
+                href={`/prd/${project.name}`}
+                className="block p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+              >
+                <h3 className="text-xl font-medium mb-2 text-gray-900 dark:text-gray-100">
+                  {project.displayName}
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 text-sm">
+                  {project.description}
+                </p>
+                <div className="mt-3 text-blue-600 dark:text-blue-400 text-sm font-medium">
+                  View PRD →
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

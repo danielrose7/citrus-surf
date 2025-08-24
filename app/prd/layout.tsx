@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -12,78 +12,97 @@ interface NavItem {
   children?: NavItem[];
 }
 
-const navigationItems: NavItem[] = [
-  {
-    title: "PRD Overview",
-    href: "/prd",
-  },
-  {
-    title: "Lookup Fields",
-    children: [
+interface ProjectData {
+  name: string;
+  displayName: string;
+  hasRoadmap: boolean;
+  tickets: Array<{
+    slug: string;
+    title: string;
+  }>;
+}
+
+async function fetchProjectData(): Promise<NavItem[]> {
+  try {
+    const response = await fetch('/api/prd/projects');
+    const projects: ProjectData[] = await response.json();
+    
+    const navigationItems: NavItem[] = [
       {
-        title: "PRD Document",
-        href: "/prd/lookup-fields",
+        title: "PRD Overview",
+        href: "/prd",
+      },
+    ];
+
+    for (const project of projects) {
+      const projectChildren: NavItem[] = [
+        {
+          title: "PRD Document",
+          href: `/prd/${project.name}`,
+        },
+      ];
+
+      if (project.hasRoadmap) {
+        projectChildren.push({
+          title: "Implementation Roadmap",
+          href: `/prd/${project.name}/roadmap`,
+        });
+      }
+
+      if (project.tickets.length > 0) {
+        projectChildren.push({
+          title: "Tickets",
+          children: project.tickets.map(ticket => ({
+            title: ticket.title,
+            href: `/prd/${project.name}/tickets/${ticket.slug}`,
+          })),
+        });
+      }
+
+      navigationItems.push({
+        title: project.displayName,
+        children: projectChildren,
+      });
+    }
+
+    return navigationItems;
+  } catch (error) {
+    console.error('Failed to fetch project data:', error);
+    // Fallback to static navigation
+    return [
+      {
+        title: "PRD Overview",
+        href: "/prd",
       },
       {
-        title: "Implementation Roadmap",
-        href: "/prd/lookup-fields/roadmap",
-      },
-      {
-        title: "Tickets",
+        title: "Lookup Fields",
         children: [
           {
-            title: "LOOKUP-001: Core Types",
-            href: "/prd/lookup-fields/tickets/lookup-001",
+            title: "PRD Document",
+            href: "/prd/lookup-fields",
           },
           {
-            title: "LOOKUP-002: Reference Data Manager",
-            href: "/prd/lookup-fields/tickets/lookup-002",
-          },
-          {
-            title: "LOOKUP-003: Target Shapes Integration",
-            href: "/prd/lookup-fields/tickets/lookup-003",
-          },
-          {
-            title: "LOOKUP-004: Matching Engine",
-            href: "/prd/lookup-fields/tickets/lookup-004",
-          },
-          {
-            title: "LOOKUP-005: Data Processing Integration",
-            href: "/prd/lookup-fields/tickets/lookup-005",
-          },
-          {
-            title: "LOOKUP-006: Validation System",
-            href: "/prd/lookup-fields/tickets/lookup-006",
-          },
-          {
-            title: "LOOKUP-007: Editable Cell Component",
-            href: "/prd/lookup-fields/tickets/lookup-007",
-          },
-          {
-            title: "LOOKUP-008: Reference Data Viewer",
-            href: "/prd/lookup-fields/tickets/lookup-008",
-          },
-          {
-            title: "LOOKUP-009: Template Builder Integration",
-            href: "/prd/lookup-fields/tickets/lookup-009",
-          },
-          {
-            title: "LOOKUP-010: Fuzzy Match Review UI",
-            href: "/prd/lookup-fields/tickets/lookup-010",
-          },
-          {
-            title: "LOOKUP-011: Routing and Navigation",
-            href: "/prd/lookup-fields/tickets/lookup-011",
-          },
-          {
-            title: "LOOKUP-012: Integration and Polish",
-            href: "/prd/lookup-fields/tickets/lookup-012",
+            title: "Implementation Roadmap",
+            href: "/prd/lookup-fields/roadmap",
           },
         ],
       },
-    ],
-  },
-];
+      {
+        title: "Validation System",
+        children: [
+          {
+            title: "PRD Document",
+            href: "/prd/validation-system",
+          },
+          {
+            title: "Implementation Roadmap",
+            href: "/prd/validation-system/roadmap",
+          },
+        ],
+      },
+    ];
+  }
+}
 
 function NavItemComponent({
   item,
@@ -150,6 +169,16 @@ function NavItemComponent({
 }
 
 export default function PRDLayout({ children }: { children: React.ReactNode }) {
+  const [navigationItems, setNavigationItems] = useState<NavItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    fetchProjectData().then(items => {
+      setNavigationItems(items);
+      setIsLoading(false);
+    });
+  }, []);
+
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
@@ -159,9 +188,15 @@ export default function PRDLayout({ children }: { children: React.ReactNode }) {
             Product Requirements
           </h2>
           <nav className="space-y-1">
-            {navigationItems.map((item, index) => (
-              <NavItemComponent key={index} item={item} />
-            ))}
+            {isLoading ? (
+              <div className="text-sm text-gray-500 dark:text-gray-400">
+                Loading projects...
+              </div>
+            ) : (
+              navigationItems.map((item, index) => (
+                <NavItemComponent key={index} item={item} />
+              ))
+            )}
           </nav>
         </div>
       </div>

@@ -12,6 +12,7 @@ vi.mock("@/lib/utils/reference-data-manager", () => ({
   referenceDataManager: {
     getReferenceDataRows: vi.fn(),
     getReferenceData: vi.fn(),
+    listReferenceFiles: vi.fn().mockReturnValue([]),
   },
 }));
 

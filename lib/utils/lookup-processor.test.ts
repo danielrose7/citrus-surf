@@ -353,7 +353,7 @@ describe("LookupProcessor", () => {
           lookupFieldWithMissingRef,
           "test_row"
         )
-      ).rejects.toThrow("Reference data not found");
+      ).rejects.toThrow("Reference data not found for nonexistent.csv");
     });
   });
 

@@ -49,7 +49,7 @@ vi.mock("../utils/target-shapes-storage", () => ({
     update: vi.fn((id: string, shape: any) => ({ ...shape, id })),
     save: vi.fn((shape: any) => ({
       ...shape,
-      id: "test_shape_id",
+      id: testShapeId,
       createdAt: "2023-01-01T00:00:00.000Z",
       updatedAt: "2023-01-01T00:00:00.000Z",
     })),
@@ -72,9 +72,10 @@ const createTestStore = () => {
 
 describe("Target Shapes Lookup Integration", () => {
   let store: ReturnType<typeof createTestStore>;
+  let testShapeId: string;
 
   const mockTargetShape: TargetShape = {
-    id: "test_shape",
+    id: testShapeId,
     name: "Test Shape",
     description: "Test shape for lookup integration",
     version: "1.0.0",
@@ -117,13 +118,16 @@ describe("Target Shapes Lookup Integration", () => {
     store = createTestStore();
     // Add the test shape to the store
     store.dispatch(saveTargetShape(mockTargetShape));
+    // Get the actual generated ID
+    const state = store.getState().targetShapes;
+    testShapeId = state.shapes[0].id;
   });
 
   describe("Adding Lookup Fields", () => {
     it("should add a lookup field to a target shape", () => {
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: mockLookupField,
         })
       );
@@ -131,7 +135,7 @@ describe("Target Shapes Lookup Integration", () => {
       const state = store.getState().targetShapes;
       expect(state.error).toBeNull();
 
-      const shape = state.shapes.find(s => s.id === "test_shape_id");
+      const shape = state.shapes.find(s => s.id === testShapeId);
       expect(shape).toBeTruthy();
       expect(shape!.fields).toHaveLength(2); // Original field + lookup field
 
@@ -146,13 +150,13 @@ describe("Target Shapes Lookup Integration", () => {
     it("should generate enum validation from reference data", () => {
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: mockLookupField,
         })
       );
 
       const state = store.getState().targetShapes;
-      const shape = state.shapes.find(s => s.id === "test_shape_id");
+      const shape = state.shapes.find(s => s.id === testShapeId);
       const lookupField = shape!.fields.find(
         f => f.type === "lookup"
       ) as LookupField;
@@ -184,7 +188,7 @@ describe("Target Shapes Lookup Integration", () => {
       // Add a lookup field first
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: mockLookupField,
         })
       );
@@ -202,7 +206,7 @@ describe("Target Shapes Lookup Integration", () => {
 
       store.dispatch(
         updateLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           fieldId: "field_department",
           updates,
         })
@@ -211,7 +215,7 @@ describe("Target Shapes Lookup Integration", () => {
       const state = store.getState().targetShapes;
       expect(state.error).toBeNull();
 
-      const shape = state.shapes.find(s => s.id === "test_shape_id");
+      const shape = state.shapes.find(s => s.id === testShapeId);
       const lookupField = shape!.fields.find(
         f => f.id === "field_department"
       ) as LookupField;
@@ -229,14 +233,14 @@ describe("Target Shapes Lookup Integration", () => {
 
       store.dispatch(
         updateLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           fieldId: "field_department",
           updates,
         })
       );
 
       const state = store.getState().targetShapes;
-      const shape = state.shapes.find(s => s.id === "test_shape_id");
+      const shape = state.shapes.find(s => s.id === testShapeId);
       const lookupField = shape!.fields.find(
         f => f.id === "field_department"
       ) as LookupField;
@@ -248,7 +252,7 @@ describe("Target Shapes Lookup Integration", () => {
     it("should handle updating non-lookup field", () => {
       store.dispatch(
         updateLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           fieldId: "field_name", // This is a string field, not lookup
           updates: { onMismatch: "error" },
         })
@@ -264,7 +268,7 @@ describe("Target Shapes Lookup Integration", () => {
       // Add a lookup field first
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: mockLookupField,
         })
       );
@@ -274,20 +278,20 @@ describe("Target Shapes Lookup Integration", () => {
       // First, update derived fields to add them
       store.dispatch(
         updateDerivedFields({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           lookupFieldId: "field_department",
         })
       );
 
       // Check that derived fields were added
       let state = store.getState().targetShapes;
-      let shape = state.shapes.find(s => s.id === "test_shape_id");
+      let shape = state.shapes.find(s => s.id === testShapeId);
       expect(shape!.fields.length).toBeGreaterThan(2); // Original + lookup + derived fields
 
       // Now remove the lookup field
       store.dispatch(
         removeLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           fieldId: "field_department",
         })
       );
@@ -295,7 +299,7 @@ describe("Target Shapes Lookup Integration", () => {
       state = store.getState().targetShapes;
       expect(state.error).toBeNull();
 
-      shape = state.shapes.find(s => s.id === "test_shape_id");
+      shape = state.shapes.find(s => s.id === testShapeId);
       expect(shape!.fields).toHaveLength(1); // Only original field should remain
       expect(shape!.fields.find(f => f.type === "lookup")).toBeUndefined();
     });
@@ -303,7 +307,7 @@ describe("Target Shapes Lookup Integration", () => {
     it("should handle removing non-existent field", () => {
       store.dispatch(
         removeLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           fieldId: "nonexistent_field",
         })
       );
@@ -317,7 +321,7 @@ describe("Target Shapes Lookup Integration", () => {
     beforeEach(() => {
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: mockLookupField,
         })
       );
@@ -326,7 +330,7 @@ describe("Target Shapes Lookup Integration", () => {
     it("should refresh validation for specific lookup field", () => {
       store.dispatch(
         refreshLookupValidation({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           fieldId: "field_department",
         })
       );
@@ -334,7 +338,7 @@ describe("Target Shapes Lookup Integration", () => {
       const state = store.getState().targetShapes;
       expect(state.error).toBeNull();
 
-      const shape = state.shapes.find(s => s.id === "test_shape_id");
+      const shape = state.shapes.find(s => s.id === testShapeId);
       const lookupField = shape!.fields.find(
         f => f.id === "field_department"
       ) as LookupField;
@@ -356,21 +360,21 @@ describe("Target Shapes Lookup Integration", () => {
 
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: secondLookupField,
         })
       );
 
       store.dispatch(
         refreshLookupValidation({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
         })
       );
 
       const state = store.getState().targetShapes;
       expect(state.error).toBeNull();
 
-      const shape = state.shapes.find(s => s.id === "test_shape_id");
+      const shape = state.shapes.find(s => s.id === testShapeId);
       const lookupFields = shape!.fields.filter(
         f => f.type === "lookup"
       ) as LookupField[];
@@ -389,7 +393,7 @@ describe("Target Shapes Lookup Integration", () => {
     beforeEach(() => {
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: mockLookupField,
         })
       );
@@ -398,7 +402,7 @@ describe("Target Shapes Lookup Integration", () => {
     it("should create derived fields from lookup configuration", () => {
       store.dispatch(
         updateDerivedFields({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           lookupFieldId: "field_department",
         })
       );
@@ -406,7 +410,7 @@ describe("Target Shapes Lookup Integration", () => {
       const state = store.getState().targetShapes;
       expect(state.error).toBeNull();
 
-      const shape = state.shapes.find(s => s.id === "test_shape_id");
+      const shape = state.shapes.find(s => s.id === testShapeId);
 
       // Should have original field + lookup field + derived fields
       expect(shape!.fields.length).toBeGreaterThan(2);
@@ -424,24 +428,24 @@ describe("Target Shapes Lookup Integration", () => {
       // Create derived fields twice to test replacement
       store.dispatch(
         updateDerivedFields({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           lookupFieldId: "field_department",
         })
       );
 
       let state = store.getState().targetShapes;
-      let shape = state.shapes.find(s => s.id === "test_shape_id");
+      let shape = state.shapes.find(s => s.id === testShapeId);
       const firstCount = shape!.fields.length;
 
       store.dispatch(
         updateDerivedFields({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           lookupFieldId: "field_department",
         })
       );
 
       state = store.getState().targetShapes;
-      shape = state.shapes.find(s => s.id === "test_shape_id");
+      shape = state.shapes.find(s => s.id === testShapeId);
 
       // Should not duplicate derived fields
       expect(shape!.fields.length).toBe(firstCount);
@@ -456,14 +460,14 @@ describe("Target Shapes Lookup Integration", () => {
 
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: simpleLookupField,
         })
       );
 
       store.dispatch(
         updateDerivedFields({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           lookupFieldId: "field_simple_department",
         })
       );
@@ -472,7 +476,7 @@ describe("Target Shapes Lookup Integration", () => {
       expect(state.error).toBeNull();
 
       // Should not add any derived fields
-      const shape = state.shapes.find(s => s.id === "test_shape_id");
+      const shape = state.shapes.find(s => s.id === testShapeId);
       expect(shape!.fields).toHaveLength(3); // Original + 2 lookup fields, no derived
     });
   });
@@ -486,7 +490,7 @@ describe("Target Shapes Lookup Integration", () => {
 
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: invalidLookupField,
         })
       );
@@ -494,7 +498,7 @@ describe("Target Shapes Lookup Integration", () => {
       const state = store.getState().targetShapes;
       expect(state.error).toBeNull(); // Should not error, just skip validation generation
 
-      const shape = state.shapes.find(s => s.id === "test_shape_id");
+      const shape = state.shapes.find(s => s.id === testShapeId);
       const lookupField = shape!.fields.find(
         f => f.type === "lookup"
       ) as LookupField;
@@ -517,7 +521,7 @@ describe("Target Shapes Lookup Integration", () => {
 
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: invalidLookupField,
         })
       );
@@ -535,14 +539,14 @@ describe("Target Shapes Lookup Integration", () => {
 
       store.dispatch(
         addLookupField({
-          shapeId: "test_shape_id",
+          shapeId: testShapeId,
           field: mockLookupField,
         })
       );
 
       // Verify that storage update was called
       expect(vi.mocked(targetShapesStorage.update)).toHaveBeenCalledWith(
-        "test_shape_id",
+        testShapeId,
         expect.objectContaining({
           fields: expect.arrayContaining([
             expect.objectContaining({

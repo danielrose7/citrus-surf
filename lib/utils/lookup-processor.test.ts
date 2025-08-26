@@ -67,6 +67,10 @@ vi.mock("./reference-data-manager", () => ({
         mockReferenceData[filename as keyof typeof mockReferenceData] || null
       );
     }),
+    listReferenceFiles: vi.fn(() => [
+      { id: "departments.csv", filename: "departments.csv" },
+      { id: "products.csv", filename: "products.csv" },
+    ]),
   },
 }));
 

@@ -49,7 +49,7 @@ vi.mock("../utils/target-shapes-storage", () => ({
     update: vi.fn((id: string, shape: any) => ({ ...shape, id })),
     save: vi.fn((shape: any) => ({
       ...shape,
-      id: testShapeId,
+      id: shape.id || "test_shape_id",
       createdAt: "2023-01-01T00:00:00.000Z",
       updatedAt: "2023-01-01T00:00:00.000Z",
     })),
@@ -75,7 +75,7 @@ describe("Target Shapes Lookup Integration", () => {
   let testShapeId: string;
 
   const mockTargetShape: TargetShape = {
-    id: testShapeId,
+    id: "temp_id", // Will be replaced when added to store
     name: "Test Shape",
     description: "Test shape for lookup integration",
     version: "1.0.0",
@@ -120,7 +120,11 @@ describe("Target Shapes Lookup Integration", () => {
     store.dispatch(saveTargetShape(mockTargetShape));
     // Get the actual generated ID
     const state = store.getState().targetShapes;
-    testShapeId = state.shapes[0].id;
+    if (state.shapes.length > 0) {
+      testShapeId = state.shapes[0].id;
+    } else {
+      testShapeId = "test_shape_id"; // Fallback
+    }
   });
 
   describe("Adding Lookup Fields", () => {

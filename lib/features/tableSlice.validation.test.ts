@@ -90,7 +90,7 @@ describe("TableSlice Validation Integration", () => {
     it("should handle validation progress updates", async () => {
       store.dispatch(setData(sampleData));
 
-      let progressUpdates: number[] = [];
+      const progressUpdates: number[] = [];
       
       const unsubscribe = store.subscribe(() => {
         const state = store.getState().table;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useState } from "react";
 import { useHydration } from "@/lib/hooks/useHydration";
 import {
   useReactTable,
@@ -57,6 +57,9 @@ import {
   generateColumnsFromTargetShape,
   generateDefaultTargetShape,
 } from "@/lib/utils/column-generator";
+import { RowValidationIndicator } from "@/components/validation-indicator";
+import { ValidationFilter, ValidationSummary } from "@/components/validation-filter";
+import { ValidationStatus } from "@/lib/types/validation";
 
 // Import the TableRow type from the slice
 import type { TableRow } from "@/lib/features/tableSlice";
@@ -88,6 +91,7 @@ export function DataTable({
     grouping,
     expanded,
     pagination,
+    validation,
     editingCell: _editingCell = null,
   } = tableState;
 
@@ -121,17 +125,40 @@ export function DataTable({
   }, [data, columnOrder, appliedTargetShapeId, targetShapesState.shapes]);
 
   // Transform simple columns to TanStack Table columns
-  const columns = useMemo<ColumnDef<TableRow>[]>(
-    () =>
-      transformColumns(
-        simpleColumns,
-        payload => {
-          dispatch(toggleColumnSort(payload));
-        },
-        sorting
-      ),
-    [simpleColumns, sorting, dispatch]
-  );
+  const columns = useMemo<ColumnDef<TableRow>[]>(() => {
+    const transformedColumns = transformColumns(
+      simpleColumns,
+      payload => {
+        dispatch(toggleColumnSort(payload));
+      },
+      sorting
+    );
+
+    // Add validation status column at the beginning
+    const validationColumn: ColumnDef<TableRow> = {
+      id: "_validation_status",
+      header: () => <span className="sr-only">Validation Status</span>,
+      cell: ({ row }) => {
+        const metadata = row.original._validationMetadata;
+        if (!metadata) return null;
+
+        return (
+          <RowValidationIndicator
+            hasErrors={metadata.hasErrors}
+            hasWarnings={metadata.hasWarnings}
+            errorCount={metadata.errorCount}
+            warningCount={metadata.warningCount}
+            className="mr-2"
+          />
+        );
+      },
+      size: 40,
+      enableSorting: false,
+      enableHiding: false,
+    };
+
+    return [validationColumn, ...transformedColumns];
+  }, [simpleColumns, sorting, dispatch]);
 
   // Table event handlers
   const onRowSelectionChange = useCallback(
@@ -206,9 +233,69 @@ export function DataTable({
     [dispatch, pagination]
   );
 
+  // Validation statistics calculation
+  const validationStats = useMemo(() => {
+    const stats = {
+      total: data.length,
+      valid: 0,
+      errors: 0,
+      warnings: 0,
+      notValidated: 0,
+    };
+
+    data.forEach(row => {
+      const metadata = row._validationMetadata;
+      if (!metadata) {
+        stats.notValidated++;
+      } else if (metadata.hasErrors) {
+        stats.errors++;
+      } else if (metadata.hasWarnings) {
+        stats.warnings++;
+      } else {
+        stats.valid++;
+      }
+    });
+
+    return stats;
+  }, [data]);
+
+  // Validation filter state
+  const [validationFilter, setValidationFilter] = useState<ValidationStatus[]>([]);
+
+  const handleValidationFilterChange = useCallback((statuses: ValidationStatus[]) => {
+    setValidationFilter(statuses);
+  }, []);
+
+  // Filtered data based on validation status
+  const filteredData = useMemo(() => {
+    if (validationFilter.length === 0) return data;
+
+    return data.filter(row => {
+      const metadata = row._validationMetadata;
+      
+      if (!metadata) {
+        return validationFilter.includes(ValidationStatus.NOT_VALIDATED);
+      }
+
+      if (metadata.hasErrors && validationFilter.includes(ValidationStatus.ERRORS)) {
+        return true;
+      }
+
+      if (metadata.hasWarnings && !metadata.hasErrors && validationFilter.includes(ValidationStatus.WARNINGS)) {
+        return true;
+      }
+
+      if (!metadata.hasErrors && !metadata.hasWarnings && validationFilter.includes(ValidationStatus.VALID)) {
+        return true;
+      }
+
+      return false;
+    });
+  }, [data, validationFilter]);
+
   // Table instance
   const table = useReactTable({
-    data,
+    data: filteredData,
     columns,
     getRowId: row => (row._rowId as string) || (row.id as string) || "",
     state: {
@@ -276,9 +363,17 @@ export function DataTable({
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Validation Summary */}
+        {validationStats.total > 0 && (
+          <ValidationSummary 
+            stats={validationStats}
+            className="px-1"
+          />
+        )}
+
         {/* Table Controls */}
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-          <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-2 min-w-0 flex-wrap">
             <Input
               placeholder="Search all columns..."
               value={globalFilter ?? ""}
@@ -286,6 +381,11 @@ export function DataTable({
                 dispatch(setGlobalFilter(event.target.value))
               }
               className="max-w-sm w-full"
+            />
+            {/* Validation Filter */}
+            <ValidationFilter
+              onFilterChange={handleValidationFilterChange}
+              validationStats={validationStats}
             />
           </div>
           <div className="flex items-center gap-2 sm:ml-auto">
@@ -348,26 +448,45 @@ export function DataTable({
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map(row => (
-                  <TableRowComponent
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                    className={
-                      currentEditingCell?.rowId === row.original.id
-                        ? "bg-primary/5 ring-1 ring-primary/20"
-                        : ""
-                    }
-                  >
-                    {row.getVisibleCells().map(cell => (
-                      <TableCell key={cell.id} data-field={cell.column.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
-                      </TableCell>
-                    ))}
-                  </TableRowComponent>
-                ))
+                table.getRowModel().rows.map(row => {
+                  const metadata = row.original._validationMetadata;
+                  const isEditing = currentEditingCell?.rowId === row.original.id;
+                  
+                  let rowClassName = "";
+                  if (isEditing) {
+                    rowClassName = "bg-primary/5 ring-1 ring-primary/20";
+                  } else if (metadata?.hasErrors) {
+                    rowClassName = "border-l-2 border-l-destructive/20 bg-destructive/5";
+                  } else if (metadata?.hasWarnings) {
+                    rowClassName = "border-l-2 border-l-amber-500/20 bg-amber-50/50 dark:bg-amber-950/10";
+                  }
+
+                  return (
+                    <TableRowComponent
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                      data-validation-status={
+                        metadata?.hasErrors 
+                          ? "error" 
+                          : metadata?.hasWarnings 
+                          ? "warning" 
+                          : metadata 
+                          ? "valid" 
+                          : "not-validated"
+                      }
+                      className={rowClassName}
+                    >
+                      {row.getVisibleCells().map(cell => (
+                        <TableCell key={cell.id} data-field={cell.column.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRowComponent>
+                  );
+                })
               ) : (
                 <TableRowComponent>
                   <TableCell

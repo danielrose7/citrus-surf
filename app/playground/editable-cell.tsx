@@ -11,6 +11,7 @@ import {
   stopEditing,
 } from "@/lib/features/tableSlice";
 import { Edit3 } from "lucide-react";
+import { CellValidationIndicator } from "@/components/validation-indicator";
 
 interface EditableCellProps {
   value: any;
@@ -362,23 +363,48 @@ export function EditableCell({
     }
   };
 
+  // Get validation metadata for this cell
+  const validationMetadata = row.original._validationMetadata;
+  const cellValidation = validationMetadata?.cellValidations?.[columnId];
+
   // Render display value
   const renderDisplay = () => {
     // Handle empty/undefined values
     if (!value && value !== 0) {
       return (
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
-          onClick={handleDoubleClick}
-          aria-label={`Edit ${columnId} value`}
-          title={`Edit ${columnId} value`}
-        >
-          <Edit3 className="h-3 w-3" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+            onClick={handleDoubleClick}
+            aria-label={`Edit ${columnId} value`}
+            title={`Edit ${columnId} value`}
+          >
+            <Edit3 className="h-3 w-3" />
+          </Button>
+          {/* Cell validation indicator for empty cells */}
+          {cellValidation && (
+            <CellValidationIndicator
+              severity={cellValidation.severity}
+              message={cellValidation.message}
+            />
+          )}
+        </div>
       );
     }
+
+    const renderValueWithValidation = (content: React.ReactNode) => (
+      <div className="flex items-center gap-1 min-w-0 flex-1">
+        <span className="truncate">{content}</span>
+        {cellValidation && (
+          <CellValidationIndicator
+            severity={cellValidation.severity}
+            message={cellValidation.message}
+          />
+        )}
+      </div>
+    );
 
     switch (inputType) {
       case "select":
@@ -386,27 +412,31 @@ export function EditableCell({
         // Find the label for the current value
         const selectedOption = selectConfig.options?.find(option => option.value === value);
         const displayLabel = selectedOption?.label || value;
-        return <Badge variant="secondary">{displayLabel}</Badge>;
+        return renderValueWithValidation(
+          <Badge variant="secondary">{displayLabel}</Badge>
+        );
 
       case "number":
         const numberConfig = columnConfig as NumberColumnConfig;
-        if (numberConfig.decimalPlaces !== undefined) {
-          return (
-            <span>{Number(value).toFixed(numberConfig.decimalPlaces)}</span>
-          );
-        }
-        return <span>{value}</span>;
+        const numberValue = numberConfig.decimalPlaces !== undefined
+          ? Number(value).toFixed(numberConfig.decimalPlaces)
+          : value;
+        return renderValueWithValidation(numberValue);
 
       case "currency":
         const currencyConfig = columnConfig as CurrencyColumnConfig;
-        return <span>{formatCurrency(value, currencyConfig.currency)}</span>;
+        return renderValueWithValidation(
+          formatCurrency(value, currencyConfig.currency)
+        );
 
       case "date":
         const dateConfig = columnConfig as DateColumnConfig;
-        return <span>{formatDate(value, dateConfig.format)}</span>;
+        return renderValueWithValidation(
+          formatDate(value, dateConfig.format)
+        );
 
       default:
-        return <span>{value}</span>;
+        return renderValueWithValidation(value);
     }
   };
 

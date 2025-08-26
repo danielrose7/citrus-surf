@@ -198,15 +198,6 @@ export class ValidationRuleRegistry {
   }
 }
 
-/**
- * Progress callback for async validation operations
- */
-export type ValidationProgressCallback = (
-  progress: number,
-  current: number,
-  total: number,
-  message?: string
-) => void;
 
 /**
  * Core validation engine that orchestrates validation rules and processes results

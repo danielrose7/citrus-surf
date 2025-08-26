@@ -26,6 +26,20 @@ import {
 } from "../types/validation";
 
 /**
+ * Callback function for validation progress updates
+ * @param progress - Progress as decimal between 0 and 1
+ * @param processed - Number of rows processed
+ * @param total - Total number of rows
+ * @param message - Optional progress message
+ */
+export type ValidationProgressCallback = (
+  progress: number,
+  processed: number,
+  total: number,
+  message?: string
+) => void;
+
+/**
  * Abstract base class for validation rules
  */
 export abstract class BaseValidationRule {
@@ -316,22 +330,40 @@ export class ValidationEngine {
    * Validates an entire table synchronously
    * @param data - The table data to validate
    * @param targetShape - The target shape defining validation rules
+   * @param options - Validation options
    * @returns ValidationState with aggregated validation results
    */
-  validateTable(data: TableRow[], targetShape: TargetShape): ValidationState {
+  validateTable(
+    data: TableRow[], 
+    targetShape: TargetShape,
+    options: { mutateRows?: boolean } = { mutateRows: true }
+  ): ValidationState {
     const startTime = Date.now();
     const state = createEmptyValidationState();
     
     state.isValidating = true;
     state.totalRows = data.length;
+    
+    // Initialize rowValidations once if we're storing metadata
+    if (options.mutateRows === false) {
+      state.rowValidations = {};
+    }
 
     // Validate each row
     for (const row of data) {
       const rowResult = this.validateRow(row, targetShape);
       const rowId = String(row.id || row._rowId || 'unknown');
 
-      // Update validation metadata on the row
-      row._validationMetadata = createRowMetadata(rowId, rowResult);
+      // Store validation metadata
+      const rowMetadata = createRowMetadata(rowId, rowResult);
+      if (state.rowValidations) {
+        state.rowValidations[rowId] = rowMetadata;
+      }
+
+      // Optionally mutate the row directly for backward compatibility
+      if (options.mutateRows) {
+        row._validationMetadata = rowMetadata;
+      }
 
       // Aggregate statistics
       state.totalErrors += rowResult.errors.length;
@@ -356,9 +388,9 @@ export class ValidationEngine {
     state.progress = 1.0;
 
     // Generate summary statistics
-    const validRows = data.filter(row => 
-      row._validationMetadata?.status === 'valid'
-    ).length;
+    const validRows = state.rowValidations 
+      ? Object.values(state.rowValidations).filter(metadata => metadata.status === 'valid').length
+      : data.filter(row => row._validationMetadata?.status === 'valid').length;
 
     state.summary = {
       score: validRows / data.length,
@@ -378,18 +410,25 @@ export class ValidationEngine {
    * @param data - The table data to validate
    * @param targetShape - The target shape defining validation rules
    * @param progressCallback - Optional callback for progress updates
+   * @param options - Validation options
    * @returns Promise resolving to ValidationState
    */
   async validateTableAsync(
     data: TableRow[],
     targetShape: TargetShape,
-    progressCallback?: ValidationProgressCallback
+    progressCallback?: ValidationProgressCallback,
+    options: { mutateRows?: boolean } = { mutateRows: true }
   ): Promise<ValidationState> {
     const startTime = Date.now();
     const state = createEmptyValidationState();
     
     state.isValidating = true;
     state.totalRows = data.length;
+    
+    // Initialize rowValidations once if we're storing metadata
+    if (options.mutateRows === false) {
+      state.rowValidations = {};
+    }
 
     // Process in chunks for better performance and progress reporting
     const chunkSize = Math.max(1, Math.min(100, Math.floor(data.length / 10)));
@@ -402,8 +441,16 @@ export class ValidationEngine {
         const rowResult = this.validateRow(row, targetShape);
         const rowId = String(row.id || row._rowId || 'unknown');
 
-        // Update validation metadata on the row
-        row._validationMetadata = createRowMetadata(rowId, rowResult);
+        // Store validation metadata
+        const rowMetadata = createRowMetadata(rowId, rowResult);
+        if (state.rowValidations) {
+          state.rowValidations[rowId] = rowMetadata;
+        }
+
+        // Optionally mutate the row directly for backward compatibility
+        if (options.mutateRows) {
+          row._validationMetadata = rowMetadata;
+        }
 
         // Aggregate statistics
         state.totalErrors += rowResult.errors.length;
@@ -447,9 +494,9 @@ export class ValidationEngine {
     state.progress = 1.0;
 
     // Generate summary statistics
-    const validRows = data.filter(row => 
-      row._validationMetadata?.status === 'valid'
-    ).length;
+    const validRows = state.rowValidations 
+      ? Object.values(state.rowValidations).filter(metadata => metadata.status === 'valid').length
+      : data.filter(row => row._validationMetadata?.status === 'valid').length;
 
     state.summary = {
       score: validRows / data.length,

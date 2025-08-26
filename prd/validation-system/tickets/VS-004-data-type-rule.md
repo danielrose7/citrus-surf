@@ -71,6 +71,4 @@ Implement data type validation that ensures values match the expected field type
 - [ ] No TypeScript errors: `npm run typecheck`
 - [ ] Use existing utility functions where applicable
 
-## Status: 📋 Planned
-
 Second core validation rule, building on the patterns established in VS-003.

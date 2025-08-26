@@ -13,8 +13,9 @@ import {
   LookupProcessingOptions,
 } from "../utils/lookup-processor";
 import type { TargetShape, LookupField } from "../types/target-shapes";
-import type { RowValidationMetadata, ValidationState } from "../types/validation";
+import type { RowValidationMetadata, ValidationState, ValidationResult } from "../types/validation";
 import { createEmptyValidationState } from "../types/validation";
+import { ValidationEngine, ValidationProgressCallback } from "../utils/validation-engine";
 
 // Flexible row data type for dynamic data import and transformation
 export type TableRow = Record<string, unknown> & {
@@ -247,6 +248,73 @@ export const updateLookupValue = createAsyncThunk(
   }
 );
 
+// Async thunk for validating table data
+export const validateTableData = createAsyncThunk(
+  "table/validateTableData",
+  async (
+    {
+      data,
+      targetShape,
+      onProgress,
+    }: {
+      data: TableRow[];
+      targetShape: TargetShape;
+      onProgress?: (processed: number, total: number) => void;
+    },
+    { dispatch }
+  ) => {
+    const validationEngine = new ValidationEngine();
+    
+    // Set up progress callback if provided
+    const progressCallback = onProgress 
+      ? (processed: number, total: number) => {
+          onProgress(processed, total);
+          dispatch(setValidationProgress(Math.floor((processed / total) * 100)));
+        }
+      : undefined;
+
+    const validationState = await validationEngine.validateTableAsync(
+      data,
+      targetShape,
+      progressCallback,
+      { mutateRows: false } // Don't mutate rows for Redux compatibility
+    );
+
+    return validationState;
+  }
+);
+
+// Async thunk for validating a single cell
+export const validateCell = createAsyncThunk(
+  "table/validateCell",
+  async ({
+    rowId,
+    columnId,
+    value,
+    targetShape,
+  }: {
+    rowId: string;
+    columnId: string;
+    value: any;
+    targetShape: TargetShape;
+  }) => {
+    const validationEngine = new ValidationEngine();
+    const field = targetShape.fields.find(f => f.name === columnId);
+    
+    if (!field) {
+      return { rowId, columnId, result: null };
+    }
+
+    const result = validationEngine.validateCell(value, field, 0, {
+      targetShape,
+      allData: [],
+      rowIndex: 0,
+    });
+
+    return { rowId, columnId, result };
+  }
+);
+
 export const tableSlice = createSlice({
   name: "table",
   initialState,
@@ -466,6 +534,19 @@ export const tableSlice = createSlice({
       const rowIndex = state.data.findIndex(row => row.id === rowId);
       if (rowIndex !== -1) {
         (state.data[rowIndex] as any)[columnId] = value;
+        
+        // Clear validation for this cell since value changed
+        if (state.data[rowIndex]._validationMetadata?.cellValidations[columnId]) {
+          delete state.data[rowIndex]._validationMetadata!.cellValidations[columnId];
+          
+          // Update row-level validation summary
+          const metadata = state.data[rowIndex]._validationMetadata!;
+          const allCellResults = Object.values(metadata.cellValidations);
+          metadata.hasErrors = allCellResults.some(r => r.severity === 'error');
+          metadata.hasWarnings = allCellResults.some(r => r.severity === 'warning');
+          metadata.errorCount = allCellResults.filter(r => r.severity === 'error').length;
+          metadata.warningCount = allCellResults.filter(r => r.severity === 'warning').length;
+        }
       }
       // Clear editing state when cell is updated
       state.editingCell = null;
@@ -519,6 +600,39 @@ export const tableSlice = createSlice({
         error: null,
       };
     },
+
+    // Validation reducers
+    setValidationProgress: (state, action: PayloadAction<number>) => {
+      state.validation.isValidating = true;
+      state.validation.progress = action.payload;
+    },
+
+    setValidationState: (state, action: PayloadAction<ValidationState>) => {
+      state.validation = action.payload;
+    },
+
+    updateRowValidation: (
+      state,
+      action: PayloadAction<{
+        rowId: string;
+        validationMetadata: RowValidationMetadata;
+      }>
+    ) => {
+      const { rowId, validationMetadata } = action.payload;
+      const rowIndex = state.data.findIndex(row => row._rowId === rowId || row.id === rowId);
+      
+      if (rowIndex !== -1) {
+        state.data[rowIndex]._validationMetadata = validationMetadata;
+      }
+    },
+
+    clearValidation: state => {
+      state.validation = createEmptyValidationState();
+      // Clear validation metadata from all rows
+      state.data.forEach(row => {
+        delete row._validationMetadata;
+      });
+    },
   },
   extraReducers: builder => {
     builder
@@ -563,6 +677,69 @@ export const tableSlice = createSlice({
             state.data[rowIndex] = result.updatedRow;
           }
         }
+      })
+
+      // Handle validateTableData async thunk
+      .addCase(validateTableData.pending, state => {
+        state.validation.isValidating = true;
+        state.validation.progress = 0;
+      })
+      .addCase(validateTableData.fulfilled, (state, action) => {
+        const validationState = action.payload;
+        state.validation = validationState;
+        state.validation.isValidating = false;
+        
+        // Convert progress from decimal to percentage if needed
+        if (state.validation.progress <= 1) {
+          state.validation.progress = Math.floor(state.validation.progress * 100);
+        }
+
+        // Apply validation metadata to table rows
+        if (validationState.rowValidations) {
+          for (const row of state.data) {
+            const rowId = String(row.id || row._rowId || 'unknown');
+            const validationMetadata = validationState.rowValidations[rowId];
+            if (validationMetadata) {
+              row._validationMetadata = validationMetadata;
+            }
+          }
+        }
+      })
+      .addCase(validateTableData.rejected, (state, action) => {
+        state.validation.isValidating = false;
+        state.validation.progress = 0;
+        // Keep existing validation state on error
+      })
+
+      // Handle validateCell async thunk
+      .addCase(validateCell.fulfilled, (state, action) => {
+        const { rowId, columnId, result } = action.payload;
+        if (result) {
+          // Update validation metadata for the specific cell
+          const rowIndex = state.data.findIndex(row => row._rowId === rowId || row.id === rowId);
+          if (rowIndex !== -1) {
+            if (!state.data[rowIndex]._validationMetadata) {
+              state.data[rowIndex]._validationMetadata = {
+                hasErrors: false,
+                hasWarnings: false,
+                errorCount: 0,
+                warningCount: 0,
+                lastValidated: new Date().toISOString(),
+                cellValidations: {},
+              };
+            }
+            state.data[rowIndex]._validationMetadata!.cellValidations[columnId] = result;
+            
+            // Update row-level validation summary
+            const metadata = state.data[rowIndex]._validationMetadata!;
+            const allCellResults = Object.values(metadata.cellValidations);
+            metadata.hasErrors = allCellResults.some(r => r.severity === 'error');
+            metadata.hasWarnings = allCellResults.some(r => r.severity === 'warning');
+            metadata.errorCount = allCellResults.filter(r => r.severity === 'error').length;
+            metadata.warningCount = allCellResults.filter(r => r.severity === 'warning').length;
+            metadata.lastValidated = new Date().toISOString();
+          }
+        }
       });
   },
 });
@@ -593,6 +770,10 @@ export const {
   restoreFromHistory,
   setLookupProgress,
   clearLookupProcessing,
+  setValidationProgress,
+  setValidationState,
+  updateRowValidation,
+  clearValidation,
 } = tableSlice.actions;
 
 export default tableSlice.reducer;

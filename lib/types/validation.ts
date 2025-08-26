@@ -270,6 +270,8 @@ export interface ValidationState {
   warningsByField: Record<string, number>;
   /** Current validation progress (0-1) */
   progress: number;
+  /** Row validation metadata by row ID */
+  rowValidations?: Record<string, RowValidationMetadata>;
   /** Validation results summary */
   summary?: {
     /** Overall validation score (0-1, higher is better) */

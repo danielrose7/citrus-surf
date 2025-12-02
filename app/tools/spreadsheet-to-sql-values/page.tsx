@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Clipboard, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -16,6 +15,19 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { NavBar } from "@/components/nav-bar";
 import { ToolExplanation } from "@/components/tool-explanation";
+import { OutputFormatSelector } from "@/components/sql-output-format-selector";
+import { ScriptTypeSelector } from "@/components/sql-script-type-selector";
+import { SqlTableConfig } from "@/components/sql-table-config";
+import { SqlColumnMappingGrid } from "@/components/sql-column-mapping-grid";
+import { SqlOutputCard } from "@/components/sql-output-card";
+import { useSqlConverterState } from "@/lib/hooks/use-sql-converter-state";
+import {
+  generateSqlScript,
+  generateValues,
+  validateSqlInput,
+  copyToClipboard as utilCopyToClipboard,
+  showConversionSuccess,
+} from "@/lib/utils/sql-generator";
 
 export default function SqlConverterPage() {
   return (
@@ -74,9 +86,9 @@ function SqlConverterExplanation() {
           Export your data from Google Spreadsheets, Excel, or save as CSV
           format
         </li>
-        <li>Choose your desired output format (VALUES or UPDATE Loop)</li>
+        <li>Choose your desired output format (VALUES, UPDATE Loop, INSERT Loop, or UPSERT Loop)</li>
         <li>Select the appropriate delimiter for your data (tab or comma)</li>
-        <li>For UPDATE loops, enter your table name and WHERE column</li>
+        <li>For UPDATE/INSERT/UPSERT loops, enter your table name and relevant column configuration</li>
         <li>Paste your spreadsheet data into the input field</li>
         <li>Click "Convert to SQL" to generate the SQL statements</li>
         <li>
@@ -100,21 +112,25 @@ function SqlConverterExplanation() {
         </li>
       </ul>
 
-      <h3>Understanding UPDATE Loops</h3>
+      <h3>Understanding Different Loop Types</h3>
       <p>
-        The UPDATE loop feature generates a PostgreSQL DO block that iterates
-        through your spreadsheet data and updates records one by one. This
-        approach is particularly useful when:
+        The loop features generate PostgreSQL DO blocks that iterate through your
+        spreadsheet data row by row:
       </p>
       <ul>
         <li>
-          You need to update multiple columns across many rows from your Google
-          Spreadsheets or Excel data
+          <strong>UPDATE Loop:</strong> Updates existing records based on a WHERE
+          condition. Perfect for bulk updates where records already exist.
         </li>
-        <li>You want to ensure each update is processed individually</li>
         <li>
-          Your CSV, Google Spreadsheets, or Excel data contains complex types
-          like UUIDs that need special handling
+          <strong>INSERT Loop:</strong> Inserts new records into the table.
+          Useful when you need to add many new rows.
+        </li>
+        <li>
+          <strong>UPSERT Loop:</strong> Uses PostgreSQL&apos;s INSERT ... ON CONFLICT
+          to either insert new records or update existing ones. Ideal for data
+          synchronization where some records may already exist. Supports composite
+          keys for complex unique constraints.
         </li>
       </ul>
 
@@ -159,67 +175,21 @@ function SqlConverterExplanation() {
 
 function SqlConverterTool() {
   const [csvInput, setCsvInput] = useState("");
-  const [sqlOutput, setSqlOutput] = useState("");
-  const [copied, setCopied] = useState(false);
   const [delimiter, setDelimiter] = useState("tab");
-  const [outputFormat, setOutputFormat] = useState("values");
-  const [tableName, setTableName] = useState("");
-  const [whereColumn, setWhereColumn] = useState("");
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [columnMappings, setColumnMappings] = useState<string[]>([]);
-  const [columnCastings, setColumnCastings] = useState<string[]>([]);
-  const [_customCastings, _setCustomCastings] = useState<
-    Record<number, string>
-  >({});
 
-  // Convert string to snake_case
-  const toSnakeCase = (str: string): string => {
-    return str
-      .toLowerCase()
-      .replace(/[^a-zA-Z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "");
-  };
-
-  // Update column mapping
-  const updateColumnMapping = (index: number, value: string) => {
-    const newMappings = [...columnMappings];
-    newMappings[index] = value;
-    setColumnMappings(newMappings);
-  };
-
-  // Update column casting
-  const updateColumnCasting = (index: number, value: string) => {
-    const newCastings = [...columnCastings];
-    newCastings[index] = value;
-    setColumnCastings(newCastings);
-  };
+  // Use shared state hook
+  const state = useSqlConverterState();
 
   // Parse CSV and convert to SQL format
   const convertToSql = () => {
-    if (!csvInput.trim()) {
-      toast({
-        title: "Empty input",
-        description: "Please enter some data to convert",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (
-      (outputFormat === "update" || outputFormat === "insert") &&
-      !tableName.trim()
-    ) {
-      toast({
-        title: "Missing table name",
-        description: "Please enter a table name for UPDATE/INSERT queries",
-        variant: "destructive",
-      });
+    // Use shared validation
+    if (!validateSqlInput(csvInput, state.outputFormat, state.tableName, "CSV")) {
       return;
     }
 
     try {
       // Split into lines and filter out empty lines
-      const lines = csvInput.split("\n").filter(line => line.trim());
+      const lines = csvInput.split("\n").filter((line) => line.trim());
 
       if (lines.length === 0) {
         toast({
@@ -235,22 +205,12 @@ function SqlConverterTool() {
         delimiter === "tab" ? "\t" : delimiter === "comma" ? "," : "\t";
 
       // Parse each line
-      const rows = lines.map(line => parseLine(line, delimiterChar));
+      const rows = lines.map((line) => parseLine(line, delimiterChar));
 
-      if (outputFormat === "update") {
+      if (state.outputFormat === "script") {
         // Extract headers from first row
         const csvHeaders = rows[0];
-        setHeaders(csvHeaders);
-
-        // Initialize column mappings if not set
-        if (columnMappings.length !== csvHeaders.length) {
-          setColumnMappings(csvHeaders.map(header => toSnakeCase(header)));
-        }
-
-        // Initialize column castings if not set
-        if (columnCastings.length !== csvHeaders.length) {
-          setColumnCastings(new Array(csvHeaders.length).fill(""));
-        }
+        state.initializeColumnMappings(csvHeaders);
 
         // Process data rows (skip header row)
         const dataRows = rows.slice(1);
@@ -264,87 +224,14 @@ function SqlConverterTool() {
           return;
         }
 
-        // Generate UPDATE loop SQL
+        // Prepare common parameters
         const mappedHeaders =
-          columnMappings.length === csvHeaders.length
-            ? columnMappings
-            : csvHeaders.map(header => toSnakeCase(header));
+          state.columnMappings.length === csvHeaders.length
+            ? state.columnMappings
+            : csvHeaders.map((header) => header.toLowerCase().replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, ""));
 
-        const valueRows = dataRows.map(values => {
-          const escapedValues = values.map(value => {
-            const escaped = value.replace(/'/g, "''");
-            return `'${escaped}'`;
-          });
-          return `(${escapedValues.join(", ")})`;
-        });
-
-        const whereCol = whereColumn || mappedHeaders[0];
-        const updateColumns = mappedHeaders.slice(1);
-        const finalCastings =
-          columnCastings.length === csvHeaders.length
-            ? columnCastings
-            : new Array(csvHeaders.length).fill("");
-
-        const sql = `DO $$ 
-DECLARE
-    row_data RECORD;
-BEGIN
-    FOR row_data IN 
-        SELECT * FROM (VALUES
-            ${valueRows.join(",\n            ")}
-        ) AS row_data(${mappedHeaders.join(", ")})
-    LOOP
-        UPDATE ${tableName}
-        SET ${updateColumns
-          .map((col, idx) => {
-            const castingIndex = idx + 1; // Skip first column (WHERE column)
-            const casting = finalCastings[castingIndex]
-              ? `${finalCastings[castingIndex]}`
-              : "";
-            return `${col} = row_data.${col}${casting}`;
-          })
-          .join(", ")}
-        WHERE ${whereCol} = row_data.${mappedHeaders[0]}${finalCastings[0] ? finalCastings[0] : ""};
-        -- HEY HUMAN!! REMEMBER TO ADD ANY ADDITIONAL 'WHERE' conditions beyond this 1:1 match
-    END LOOP;
-END $$;`;
-
-        setSqlOutput(sql);
-      } else if (outputFormat === "insert") {
-        // Extract headers from first row
-        const csvHeaders = rows[0];
-        setHeaders(csvHeaders);
-
-        // Initialize column mappings if not set
-        if (columnMappings.length !== csvHeaders.length) {
-          setColumnMappings(csvHeaders.map(header => toSnakeCase(header)));
-        }
-
-        // Initialize column castings if not set
-        if (columnCastings.length !== csvHeaders.length) {
-          setColumnCastings(new Array(csvHeaders.length).fill(""));
-        }
-
-        // Process data rows (skip header row)
-        const dataRows = rows.slice(1);
-
-        if (dataRows.length === 0) {
-          toast({
-            title: "No data rows found",
-            description: "Please ensure you have data rows after the header",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        // Generate INSERT loop SQL
-        const mappedHeaders =
-          columnMappings.length === csvHeaders.length
-            ? columnMappings
-            : csvHeaders.map(header => toSnakeCase(header));
-
-        const valueRows = dataRows.map(values => {
-          const escapedValues = values.map(value => {
+        const valueRows = dataRows.map((values) => {
+          const escapedValues = values.map((value) => {
             const escaped = value.replace(/'/g, "''");
             return `'${escaped}'`;
           });
@@ -352,50 +239,38 @@ END $$;`;
         });
 
         const finalCastings =
-          columnCastings.length === csvHeaders.length
-            ? columnCastings
+          state.columnCastings.length === csvHeaders.length
+            ? state.columnCastings
             : new Array(csvHeaders.length).fill("");
 
-        const sql = `DO $$ 
-DECLARE
-    row_data RECORD;
-BEGIN
-    FOR row_data IN 
-        SELECT * FROM (VALUES
-            ${valueRows.join(",\n            ")}
-        ) AS row_data(${mappedHeaders.join(", ")})
-    LOOP
-        INSERT INTO ${tableName} (${mappedHeaders.join(", ")})
-        VALUES (${mappedHeaders
-          .map((col, idx) => {
-            const casting = finalCastings[idx] ? `${finalCastings[idx]}` : "";
-            return `row_data.${col}${casting}`;
-          })
-          .join(", ")});
-    END LOOP;
-END $$;`;
+        // Generate SQL using shared script generation utility
+        const sql = generateSqlScript({
+          scriptType: state.scriptType as "insert" | "update" | "upsert",
+          tableName: state.tableName,
+          mappedHeaders,
+          valueRows,
+          columnCastings: finalCastings,
+          whereColumn: state.whereColumn,
+          conflictColumns: state.conflictColumn,
+        });
 
-        setSqlOutput(sql);
+        state.setSqlOutput(sql);
       } else {
         // Original VALUES format
-        const valueRows = [];
-        for (let i = 0; i < rows.length; i++) {
-          const values = rows[i];
-          const escapedValues = values.map(value => {
+        const valueRows = rows.map((values) => {
+          const escapedValues = values.map((value) => {
             const escaped = value.replace(/'/g, "''");
             return `'${escaped}'`;
           });
-          valueRows.push(`(${escapedValues.join(", ")})`);
-        }
+          return `(${escapedValues.join(", ")})`;
+        });
 
-        const sql = valueRows.join(",\n") + ";";
-        setSqlOutput(sql);
+        const sql = generateValues(valueRows);
+        state.setSqlOutput(sql);
       }
 
-      toast({
-        title: "Conversion complete",
-        description: `Generated ${outputFormat === "update" ? "UPDATE loop" : outputFormat === "insert" ? "INSERT loop" : "VALUES"} SQL`,
-      });
+      // Use shared success toast
+      showConversionSuccess(state.outputFormat, state.scriptType);
     } catch (error) {
       toast({
         title: "Error converting to SQL",
@@ -411,8 +286,8 @@ END $$;`;
 ffa773fa-45db-443e-bbd8-1ca7b1a13d49	Roy	Roper	roy.roper@example.com
 fe057db7-01f5-478c-ae2d-9ceb168c21d7	David	Weaver	david.weaver@example.com
 a1b2c3d4-e5f6-7890-abcd-ef1234567890	Sarah	Johnson	sarah.johnson@example.com`);
-    setTableName("contact");
-    setWhereColumn("external_id");
+    state.setTableName("contact");
+    state.setWhereColumn("external_id");
   };
 
   const parseLine = (line: string, delimiter: string): string[] => {
@@ -455,35 +330,14 @@ a1b2c3d4-e5f6-7890-abcd-ef1234567890	Sarah	Johnson	sarah.johnson@example.com`);
     return result;
   };
 
+  // Use shared clipboard utility
   const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(sqlOutput);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-
-      toast({
-        title: "Copied to clipboard",
-        description: "The SQL has been copied to your clipboard",
-      });
-    } catch {
-      toast({
-        title: "Failed to copy",
-        description: "Please try again or copy manually",
-        variant: "destructive",
-      });
-    }
+    await utilCopyToClipboard(state.sqlOutput, () => state.setCopied(true));
+    setTimeout(() => state.setCopied(false), 2000);
   };
 
   const clearAll = () => {
-    setCsvInput("");
-    setSqlOutput("");
-    setCopied(false);
-    setTableName("");
-    setWhereColumn("");
-    setHeaders([]);
-    setColumnMappings([]);
-    setColumnCastings([]);
-    setCustomCastings({});
+    state.clearAll(() => setCsvInput(""));
   };
 
   return (
@@ -496,34 +350,17 @@ a1b2c3d4-e5f6-7890-abcd-ef1234567890	Sarah	Johnson	sarah.johnson@example.com`);
           </CardTitle>
           <CardDescription>
             Convert data from CSV files, Google Spreadsheets, or Excel exports
-            to SQL VALUES format for database import.
+            to SQL VALUES, UPDATE loops, INSERT statements, or UPSERT operations
+            for database import.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Output Format</Label>
-                <RadioGroup
-                  defaultValue="values"
-                  value={outputFormat}
-                  onValueChange={setOutputFormat}
-                  className="flex space-x-4"
-                >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="values" id="values" />
-                    <Label htmlFor="values">VALUES</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="update" id="update" />
-                    <Label htmlFor="update">UPDATE Loop</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="insert" id="insert" />
-                    <Label htmlFor="insert">INSERT Loop</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+              <OutputFormatSelector
+                value={state.outputFormat}
+                onChange={state.setOutputFormat}
+              />
 
               <div className="space-y-2">
                 <Label>Delimiter</Label>
@@ -545,33 +382,23 @@ a1b2c3d4-e5f6-7890-abcd-ef1234567890	Sarah	Johnson	sarah.johnson@example.com`);
               </div>
             </div>
 
-            {(outputFormat === "update" || outputFormat === "insert") && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="tableName">Table Name</Label>
-                  <input
-                    id="tableName"
-                    type="text"
-                    placeholder="e.g., contact"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    value={tableName}
-                    onChange={e => setTableName(e.target.value)}
-                  />
-                </div>
-                {outputFormat === "update" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="whereColumn">WHERE Column</Label>
-                    <input
-                      id="whereColumn"
-                      type="text"
-                      placeholder="e.g., external_id"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      value={whereColumn}
-                      onChange={e => setWhereColumn(e.target.value)}
-                    />
-                  </div>
-                )}
-              </div>
+            {state.outputFormat === "script" && (
+              <ScriptTypeSelector
+                value={state.scriptType}
+                onChange={state.setScriptType}
+              />
+            )}
+
+            {state.outputFormat === "script" && (
+              <SqlTableConfig
+                scriptType={state.scriptType}
+                tableName={state.tableName}
+                onTableNameChange={state.setTableName}
+                whereColumn={state.whereColumn}
+                onWhereColumnChange={state.setWhereColumn}
+                conflictColumn={state.conflictColumn}
+                onConflictColumnChange={state.setConflictColumn}
+              />
             )}
 
             <div className="space-y-2">
@@ -581,76 +408,27 @@ a1b2c3d4-e5f6-7890-abcd-ef1234567890	Sarah	Johnson	sarah.johnson@example.com`);
                 placeholder="Paste your data here"
                 className="min-h-[150px] font-mono text-sm"
                 value={csvInput}
-                onChange={e => setCsvInput(e.target.value)}
+                onChange={(e) => setCsvInput(e.target.value)}
               />
             </div>
 
-            {(outputFormat === "update" || outputFormat === "insert") &&
-              headers.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Column Mapping & Casting</Label>
-                  <div className="border rounded-md p-4 space-y-2">
-                    <div className="text-sm text-muted-foreground mb-2">
-                      Map your CSV headers to database column names and specify
-                      optional type casting:
-                    </div>
-                    <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 items-center mb-2 text-sm font-medium text-muted-foreground">
-                      <div>CSV Header</div>
-                      <div>Database Column</div>
-                      <div>Type Casting</div>
-                    </div>
-                    {headers.map((header, index) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-[1fr_1fr_1fr] gap-2 items-center"
-                      >
-                        <div className="text-sm font-medium">{header}</div>
-                        <input
-                          type="text"
-                          className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          value={columnMappings[index] || toSnakeCase(header)}
-                          onChange={e =>
-                            updateColumnMapping(index, e.target.value)
-                          }
-                          placeholder={toSnakeCase(header)}
-                        />
-                        <div className="relative">
-                          <input
-                            type="text"
-                            list={`casting-options-${index}`}
-                            className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            placeholder="Select or type custom (e.g., ::uuid)"
-                            value={columnCastings[index] || ""}
-                            onChange={e =>
-                              updateColumnCasting(index, e.target.value)
-                            }
-                          />
-                          <datalist id={`casting-options-${index}`}>
-                            <option value=""></option>
-                            <option value="::uuid"></option>
-                            <option value="::text"></option>
-                            <option value="::integer"></option>
-                            <option value="::numeric"></option>
-                            <option value="::boolean"></option>
-                            <option value="::timestamp"></option>
-                            <option value="::timestamptz"></option>
-                            <option value="::date"></option>
-                            <option value="::jsonb"></option>
-                            <option value="::json"></option>
-                          </datalist>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {state.outputFormat === "script" && state.headers.length > 0 && (
+              <SqlColumnMappingGrid
+                headers={state.headers}
+                columnMappings={state.columnMappings}
+                columnCastings={state.columnCastings}
+                onMappingChange={state.updateColumnMapping}
+                onCastingChange={state.updateColumnCasting}
+                sourceLabel="CSV Header"
+              />
+            )}
 
             <div className="flex gap-2">
               <Button onClick={convertToSql}>Convert to SQL</Button>
               <Button variant="outline" onClick={loadSampleData}>
                 Load Sample Data
               </Button>
-              {sqlOutput && (
+              {state.sqlOutput && (
                 <Button variant="outline" onClick={clearAll}>
                   Clear All
                 </Button>
@@ -660,35 +438,11 @@ a1b2c3d4-e5f6-7890-abcd-ef1234567890	Sarah	Johnson	sarah.johnson@example.com`);
         </CardContent>
       </Card>
 
-      {sqlOutput && (
-        <Card className="mt-8">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>SQL Output</CardTitle>
-              <CardDescription>Ready to use in your database</CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              onClick={copyToClipboard}
-              className="flex items-center gap-2"
-            >
-              {copied ? (
-                <ClipboardCheck className="h-4 w-4" />
-              ) : (
-                <Clipboard className="h-4 w-4" />
-              )}
-              Copy SQL
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              className="min-h-[300px] font-mono text-sm"
-              readOnly
-              value={sqlOutput}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <SqlOutputCard
+        sqlOutput={state.sqlOutput}
+        copied={state.copied}
+        onCopy={copyToClipboard}
+      />
     </>
   );
 }

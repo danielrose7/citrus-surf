@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Clipboard, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -13,9 +12,22 @@ import {
 } from "@/components/ui/card";
 import { toast } from "@/components/ui/use-toast";
 import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { NavBar } from "@/components/nav-bar";
 import { ToolExplanation } from "@/components/tool-explanation";
+import { OutputFormatSelector } from "@/components/sql-output-format-selector";
+import { ScriptTypeSelector } from "@/components/sql-script-type-selector";
+import { SqlTableConfig } from "@/components/sql-table-config";
+import { SqlColumnMappingGrid } from "@/components/sql-column-mapping-grid";
+import { SqlOutputCard } from "@/components/sql-output-card";
+import { useSqlConverterState } from "@/lib/hooks/use-sql-converter-state";
+import {
+  generateSqlScript,
+  generateValues,
+  validateSqlInput,
+  copyToClipboard as utilCopyToClipboard,
+  showConversionSuccess,
+  valueToSqlString,
+} from "@/lib/utils/sql-generator";
 
 export default function JsonToSqlPage() {
   return (
@@ -70,12 +82,12 @@ function JsonToSqlExplanation() {
       <ol>
         <li>Paste your JSON array of objects into the input field</li>
         <li>
-          Choose your desired output format (VALUES, UPDATE Loop, or INSERT
-          Loop)
+          Choose your desired output format (VALUES, UPDATE Loop, INSERT Loop,
+          or UPSERT Loop)
         </li>
         <li>
-          For UPDATE/INSERT loops, enter your table name and configure column
-          mappings
+          For UPDATE/INSERT/UPSERT loops, enter your table name and configure
+          column mappings
         </li>
         <li>
           Specify type casting for columns that need it (e.g., ::uuid,
@@ -99,6 +111,13 @@ function JsonToSqlExplanation() {
           <strong>INSERT Loop:</strong> Generates a PostgreSQL DO block that
           inserts new records into the specified table.
         </li>
+        <li>
+          <strong>UPSERT Loop:</strong> Creates a PostgreSQL DO block that uses
+          INSERT with ON CONFLICT to either insert new records or update
+          existing ones based on a conflict column (unique constraint or index).
+          Perfect for data synchronization when you want to handle both inserts
+          and updates in a single operation.
+        </li>
       </ul>
 
       <h3>JSON Structure Requirements</h3>
@@ -116,7 +135,7 @@ function JsonToSqlExplanation() {
   },
   {
     "id": "987fcdeb-51a2-43d1-9f12-345678901234",
-    "name": "Jane Smith", 
+    "name": "Jane Smith",
     "email": "jane@example.com",
     "age": 25
   }
@@ -170,6 +189,39 @@ function JsonToSqlExplanation() {
         </li>
       </ul>
 
+      <h3>UPSERT Loop Details</h3>
+      <p>
+        The UPSERT Loop uses PostgreSQL&apos;s native{" "}
+        <code>INSERT ... ON CONFLICT ... DO UPDATE</code> syntax to handle both
+        inserts and updates automatically. Key points:
+      </p>
+      <ul>
+        <li>
+          <strong>Conflict Column(s):</strong> Specify the column(s) that have a
+          unique constraint or index. For composite keys, use comma-separated
+          column names (e.g., &quot;col1, col2&quot;). When a conflict occurs,
+          the row is updated instead of inserted.
+        </li>
+        <li>
+          <strong>Automatic Updates:</strong> All columns except the conflict
+          column(s) are automatically updated when a conflict is detected.
+        </li>
+        <li>
+          <strong>Type Safety:</strong> Type casting is applied to ensure data
+          consistency between insert and update operations.
+        </li>
+        <li>
+          <strong>Database Constraint Required:</strong> Ensure your table has a
+          unique constraint or index on the conflict column(s) for this pattern
+          to work correctly.
+        </li>
+        <li>
+          <strong>Composite Keys:</strong> Perfect for tables with composite
+          unique constraints like{" "}
+          <code>@@unique([col1, col2])</code> in Prisma models.
+        </li>
+      </ul>
+
       <h3>Security & Privacy</h3>
       <p>
         All JSON processing happens locally in your browser. Your data never
@@ -182,57 +234,16 @@ function JsonToSqlExplanation() {
 
 function JsonToSqlTool() {
   const [jsonInput, setJsonInput] = useState("");
-  const [sqlOutput, setSqlOutput] = useState("");
-  const [copied, setCopied] = useState(false);
-  const [outputFormat, setOutputFormat] = useState("values");
-  const [tableName, setTableName] = useState("");
-  const [whereColumn, setWhereColumn] = useState("");
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [columnMappings, setColumnMappings] = useState<string[]>([]);
-  const [columnCastings, setColumnCastings] = useState<string[]>([]);
 
-  // Convert string to snake_case
-  const toSnakeCase = (str: string): string => {
-    return str
-      .toLowerCase()
-      .replace(/[^a-zA-Z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "");
-  };
-
-  // Update column mapping
-  const updateColumnMapping = (index: number, value: string) => {
-    const newMappings = [...columnMappings];
-    newMappings[index] = value;
-    setColumnMappings(newMappings);
-  };
-
-  // Update column casting
-  const updateColumnCasting = (index: number, value: string) => {
-    const newCastings = [...columnCastings];
-    newCastings[index] = value;
-    setColumnCastings(newCastings);
-  };
+  // Use shared state hook
+  const state = useSqlConverterState();
 
   // Parse JSON and convert to SQL format
   const convertToSql = () => {
-    if (!jsonInput.trim()) {
-      toast({
-        title: "Empty input",
-        description: "Please enter some JSON data to convert",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    // Use shared validation
     if (
-      (outputFormat === "update" || outputFormat === "insert") &&
-      !tableName.trim()
+      !validateSqlInput(jsonInput, state.outputFormat, state.tableName, "JSON")
     ) {
-      toast({
-        title: "Missing table name",
-        description: "Please enter a table name for UPDATE/INSERT queries",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -271,132 +282,69 @@ function JsonToSqlTool() {
 
       // Extract all possible keys from all objects
       const allKeys = new Set<string>();
-      jsonData.forEach(item => {
+      jsonData.forEach((item) => {
         if (typeof item === "object" && item !== null) {
-          Object.keys(item).forEach(key => allKeys.add(key));
+          Object.keys(item).forEach((key) => allKeys.add(key));
         }
       });
 
       const jsonHeaders = Array.from(allKeys);
-      setHeaders(jsonHeaders);
+      state.initializeColumnMappings(jsonHeaders);
 
-      if (outputFormat === "update" || outputFormat === "insert") {
-        // Initialize column mappings if not set
-        if (columnMappings.length !== jsonHeaders.length) {
-          setColumnMappings(jsonHeaders.map(header => toSnakeCase(header)));
-        }
-
-        // Initialize column castings if not set
-        if (columnCastings.length !== jsonHeaders.length) {
-          setColumnCastings(new Array(jsonHeaders.length).fill(""));
-        }
-
+      if (state.outputFormat === "script") {
         // Generate mapped headers
         const mappedHeaders =
-          columnMappings.length === jsonHeaders.length
-            ? columnMappings
-            : jsonHeaders.map(header => toSnakeCase(header));
+          state.columnMappings.length === jsonHeaders.length
+            ? state.columnMappings
+            : jsonHeaders.map((header) =>
+                header
+                  .toLowerCase()
+                  .replace(/[^a-zA-Z0-9]+/g, "_")
+                  .replace(/^_+|_+$/g, "")
+              );
 
         // Convert JSON objects to value rows
-        const valueRows = jsonData.map(item => {
-          const values = jsonHeaders.map(header => {
+        const valueRows = jsonData.map((item) => {
+          const values = jsonHeaders.map((header) => {
             const value = item[header];
-            if (value === undefined || value === null) return "NULL";
-            if (typeof value === "string") {
-              const escaped = value.replace(/'/g, "''");
-              return `'${escaped}'`;
-            }
-            if (typeof value === "object") {
-              const escaped = JSON.stringify(value).replace(/'/g, "''");
-              return `'${escaped}'`;
-            }
-            return `'${String(value)}'`;
+            return valueToSqlString(value);
           });
           return `(${values.join(", ")})`;
         });
 
         const finalCastings =
-          columnCastings.length === jsonHeaders.length
-            ? columnCastings
+          state.columnCastings.length === jsonHeaders.length
+            ? state.columnCastings
             : new Array(jsonHeaders.length).fill("");
 
-        if (outputFormat === "update") {
-          const whereCol = whereColumn || mappedHeaders[0];
-          const updateColumns = mappedHeaders.slice(1);
+        // Generate SQL using shared script generation utility
+        const sql = generateSqlScript({
+          scriptType: state.scriptType as "insert" | "update" | "upsert",
+          tableName: state.tableName,
+          mappedHeaders,
+          valueRows,
+          columnCastings: finalCastings,
+          whereColumn: state.whereColumn,
+          conflictColumns: state.conflictColumn,
+        });
 
-          const sql = `DO $$ 
-DECLARE
-    row_data RECORD;
-BEGIN
-    FOR row_data IN 
-        SELECT * FROM (VALUES
-            ${valueRows.join(",\n            ")}
-        ) AS row_data(${mappedHeaders.join(", ")})
-    LOOP
-        UPDATE ${tableName}
-        SET ${updateColumns
-          .map((col, idx) => {
-            const castingIndex = idx + 1; // Skip first column (WHERE column)
-            const casting = finalCastings[castingIndex]
-              ? `${finalCastings[castingIndex]}`
-              : "";
-            return `${col} = row_data.${col}${casting}`;
-          })
-          .join(", ")}
-        WHERE ${whereCol} = row_data.${mappedHeaders[0]}${finalCastings[0] ? finalCastings[0] : ""};
-    END LOOP;
-END $$;`;
-
-          setSqlOutput(sql);
-        } else if (outputFormat === "insert") {
-          const sql = `DO $$ 
-DECLARE
-    row_data RECORD;
-BEGIN
-    FOR row_data IN 
-        SELECT * FROM (VALUES
-            ${valueRows.join(",\n            ")}
-        ) AS row_data(${mappedHeaders.join(", ")})
-    LOOP
-        INSERT INTO ${tableName} (${mappedHeaders.join(", ")})
-        VALUES (${mappedHeaders
-          .map((col, idx) => {
-            const casting = finalCastings[idx] ? `${finalCastings[idx]}` : "";
-            return `row_data.${col}${casting}`;
-          })
-          .join(", ")});
-    END LOOP;
-END $$;`;
-
-          setSqlOutput(sql);
-        }
+        state.setSqlOutput(sql);
       } else {
         // VALUES format
-        const valueRows = jsonData.map(item => {
-          const values = jsonHeaders.map(header => {
+        const valueRows = jsonData.map((item) => {
+          const values = jsonHeaders.map((header) => {
             const value = item[header];
-            if (value === undefined || value === null) return "NULL";
-            if (typeof value === "string") {
-              const escaped = value.replace(/'/g, "''");
-              return `'${escaped}'`;
-            }
-            if (typeof value === "object") {
-              const escaped = JSON.stringify(value).replace(/'/g, "''");
-              return `'${escaped}'`;
-            }
-            return `'${String(value)}'`;
+            return valueToSqlString(value);
           });
           return `(${values.join(", ")})`;
         });
 
-        const sql = valueRows.join(",\n") + ";";
-        setSqlOutput(sql);
+        const sql = generateValues(valueRows);
+        state.setSqlOutput(sql);
       }
 
-      toast({
-        title: "Conversion complete",
-        description: `Generated ${outputFormat === "update" ? "UPDATE loop" : outputFormat === "insert" ? "INSERT loop" : "VALUES"} SQL`,
-      });
+      // Use shared success toast
+      showConversionSuccess(state.outputFormat, state.scriptType);
     } catch (error) {
       toast({
         title: "Error converting to SQL",
@@ -440,8 +388,8 @@ END $$;`;
         2
       )
     );
-    setTableName("users");
-    setWhereColumn("id");
+    state.setTableName("users");
+    state.setWhereColumn("id");
   };
 
   const formatJson = () => {
@@ -461,34 +409,14 @@ END $$;`;
     }
   };
 
+  // Use shared clipboard utility
   const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(sqlOutput);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-
-      toast({
-        title: "Copied to clipboard",
-        description: "The SQL has been copied to your clipboard",
-      });
-    } catch {
-      toast({
-        title: "Failed to copy",
-        description: "Please try again or copy manually",
-        variant: "destructive",
-      });
-    }
+    await utilCopyToClipboard(state.sqlOutput, () => state.setCopied(true));
+    setTimeout(() => state.setCopied(false), 2000);
   };
 
   const clearAll = () => {
-    setJsonInput("");
-    setSqlOutput("");
-    setCopied(false);
-    setTableName("");
-    setWhereColumn("");
-    setHeaders([]);
-    setColumnMappings([]);
-    setColumnCastings([]);
+    state.clearAll(() => setJsonInput(""));
   };
 
   return (
@@ -500,62 +428,34 @@ END $$;`;
             <div className="absolute -bottom-1 left-0 w-full h-0.5 bg-gradient-to-r from-orange-400 to-teal-400 rounded-full"></div>
           </CardTitle>
           <CardDescription>
-            Convert JSON arrays of objects into SQL VALUES, UPDATE loops, or
-            INSERT statements for database operations.
+            Convert JSON arrays of objects into SQL VALUES, UPDATE loops, INSERT
+            statements, or UPSERT operations for database operations.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Output Format</Label>
-              <RadioGroup
-                defaultValue="values"
-                value={outputFormat}
-                onValueChange={setOutputFormat}
-                className="flex space-x-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="values" id="values" />
-                  <Label htmlFor="values">VALUES</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="update" id="update" />
-                  <Label htmlFor="update">UPDATE Loop</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="insert" id="insert" />
-                  <Label htmlFor="insert">INSERT Loop</Label>
-                </div>
-              </RadioGroup>
-            </div>
+            <OutputFormatSelector
+              value={state.outputFormat}
+              onChange={state.setOutputFormat}
+            />
 
-            {(outputFormat === "update" || outputFormat === "insert") && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label htmlFor="tableName">Table Name</Label>
-                  <input
-                    id="tableName"
-                    type="text"
-                    placeholder="e.g., users"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    value={tableName}
-                    onChange={e => setTableName(e.target.value)}
-                  />
-                </div>
-                {outputFormat === "update" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="whereColumn">WHERE Column</Label>
-                    <input
-                      id="whereColumn"
-                      type="text"
-                      placeholder="e.g., id"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      value={whereColumn}
-                      onChange={e => setWhereColumn(e.target.value)}
-                    />
-                  </div>
-                )}
-              </div>
+            {state.outputFormat === "script" && (
+              <ScriptTypeSelector
+                value={state.scriptType}
+                onChange={state.setScriptType}
+              />
+            )}
+
+            {state.outputFormat === "script" && (
+              <SqlTableConfig
+                scriptType={state.scriptType}
+                tableName={state.tableName}
+                onTableNameChange={state.setTableName}
+                whereColumn={state.whereColumn}
+                onWhereColumnChange={state.setWhereColumn}
+                conflictColumn={state.conflictColumn}
+                onConflictColumnChange={state.setConflictColumn}
+              />
             )}
 
             <div className="space-y-2">
@@ -570,76 +470,27 @@ END $$;`;
                 placeholder='Paste your JSON array here. Example: [{"id": 1, "name": "John"}, {"id": 2, "name": "Jane"}]'
                 className="min-h-[200px] font-mono text-sm"
                 value={jsonInput}
-                onChange={e => setJsonInput(e.target.value)}
+                onChange={(e) => setJsonInput(e.target.value)}
               />
             </div>
 
-            {(outputFormat === "update" || outputFormat === "insert") &&
-              headers.length > 0 && (
-                <div className="space-y-2">
-                  <Label>Column Mapping & Casting</Label>
-                  <div className="border rounded-md p-4 space-y-2">
-                    <div className="text-sm text-muted-foreground mb-2">
-                      Map your JSON properties to database column names and
-                      specify optional type casting:
-                    </div>
-                    <div className="grid grid-cols-[1fr_1fr_1fr] gap-2 items-center mb-2 text-sm font-medium text-muted-foreground">
-                      <div>JSON Property</div>
-                      <div>Database Column</div>
-                      <div>Type Casting</div>
-                    </div>
-                    {headers.map((header, index) => (
-                      <div
-                        key={index}
-                        className="grid grid-cols-[1fr_1fr_1fr] gap-2 items-center"
-                      >
-                        <div className="text-sm font-medium">{header}</div>
-                        <input
-                          type="text"
-                          className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                          value={columnMappings[index] || toSnakeCase(header)}
-                          onChange={e =>
-                            updateColumnMapping(index, e.target.value)
-                          }
-                          placeholder={toSnakeCase(header)}
-                        />
-                        <div className="relative">
-                          <input
-                            type="text"
-                            list={`casting-options-${index}`}
-                            className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                            placeholder="Select or type custom (e.g., ::uuid)"
-                            value={columnCastings[index] || ""}
-                            onChange={e =>
-                              updateColumnCasting(index, e.target.value)
-                            }
-                          />
-                          <datalist id={`casting-options-${index}`}>
-                            <option value=""></option>
-                            <option value="::uuid"></option>
-                            <option value="::text"></option>
-                            <option value="::integer"></option>
-                            <option value="::numeric"></option>
-                            <option value="::boolean"></option>
-                            <option value="::timestamp"></option>
-                            <option value="::timestamptz"></option>
-                            <option value="::date"></option>
-                            <option value="::jsonb"></option>
-                            <option value="::json"></option>
-                          </datalist>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+            {state.outputFormat === "script" && state.headers.length > 0 && (
+              <SqlColumnMappingGrid
+                headers={state.headers}
+                columnMappings={state.columnMappings}
+                columnCastings={state.columnCastings}
+                onMappingChange={state.updateColumnMapping}
+                onCastingChange={state.updateColumnCasting}
+                sourceLabel="JSON Property"
+              />
+            )}
 
             <div className="flex gap-2">
               <Button onClick={convertToSql}>Convert to SQL</Button>
               <Button variant="outline" onClick={loadSampleData}>
                 Load Sample Data
               </Button>
-              {sqlOutput && (
+              {state.sqlOutput && (
                 <Button variant="outline" onClick={clearAll}>
                   Clear All
                 </Button>
@@ -649,35 +500,11 @@ END $$;`;
         </CardContent>
       </Card>
 
-      {sqlOutput && (
-        <Card className="mt-8">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>SQL Output</CardTitle>
-              <CardDescription>Ready to use in your database</CardDescription>
-            </div>
-            <Button
-              variant="outline"
-              onClick={copyToClipboard}
-              className="flex items-center gap-2"
-            >
-              {copied ? (
-                <ClipboardCheck className="h-4 w-4" />
-              ) : (
-                <Clipboard className="h-4 w-4" />
-              )}
-              Copy SQL
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <Textarea
-              className="min-h-[300px] font-mono text-sm"
-              readOnly
-              value={sqlOutput}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <SqlOutputCard
+        sqlOutput={state.sqlOutput}
+        copied={state.copied}
+        onCopy={copyToClipboard}
+      />
     </>
   );
 }

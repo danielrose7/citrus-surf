@@ -40,6 +40,71 @@ export function valueToSqlString(value: unknown): string {
 }
 
 /**
+ * Recursively builds a PostgreSQL JSONB constructor expression from a JS value.
+ * Objects → jsonb_build_object(), Arrays → jsonb_build_array(),
+ * primitives → SQL literals.
+ */
+export function valueToJsonbExpression(value: unknown): string {
+  if (value === undefined || value === null) return "NULL";
+
+  if (Array.isArray(value)) {
+    const elements = value.map((el) => valueToJsonbExpression(el));
+    return `jsonb_build_array(${elements.join(", ")})`;
+  }
+
+  if (typeof value === "object") {
+    const entries = Object.entries(value as Record<string, unknown>);
+    if (entries.length === 0) return "'{}'::jsonb";
+    const args = entries.flatMap(([key, val]) => [
+      `'${escapeSqlString(key)}'`,
+      valueToJsonbExpression(val),
+    ]);
+    return `jsonb_build_object(${args.join(", ")})`;
+  }
+
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "number") return String(value);
+  if (typeof value === "string") return `'${escapeSqlString(value)}'`;
+
+  return `'${escapeSqlString(String(value))}'`;
+}
+
+/**
+ * Converts a value to a SQL string, using JSONB builder expressions when
+ * the column has a ::jsonb or ::json casting and the value is/contains JSON.
+ */
+export function valueToSqlStringWithCasting(
+  value: unknown,
+  casting: string
+): string {
+  const isJsonCast =
+    casting === "::jsonb" || casting === "::json";
+
+  if (!isJsonCast) return valueToSqlString(value);
+
+  if (value === undefined || value === null) return "NULL";
+
+  // If already an object/array, use the builder directly
+  if (typeof value === "object") {
+    return valueToJsonbExpression(value);
+  }
+
+  // If it's a string, try parsing as JSON
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value);
+      if (typeof parsed === "object" && parsed !== null) {
+        return valueToJsonbExpression(parsed);
+      }
+    } catch {
+      // Not valid JSON — fall through to default
+    }
+  }
+
+  return valueToSqlString(value);
+}
+
+/**
  * Converts a string to snake_case for database column names
  */
 export function toSnakeCase(str: string): string {

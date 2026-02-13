@@ -27,6 +27,7 @@ import {
   copyToClipboard as utilCopyToClipboard,
   showConversionSuccess,
   valueToSqlString,
+  valueToSqlStringWithCasting,
 } from "@/lib/utils/sql-generator";
 
 export default function JsonToSqlPage() {
@@ -303,19 +304,19 @@ function JsonToSqlTool() {
                   .replace(/^_+|_+$/g, "")
               );
 
-        // Convert JSON objects to value rows
-        const valueRows = jsonData.map((item) => {
-          const values = jsonHeaders.map((header) => {
-            const value = item[header];
-            return valueToSqlString(value);
-          });
-          return `(${values.join(", ")})`;
-        });
-
         const finalCastings =
           state.columnCastings.length === jsonHeaders.length
             ? state.columnCastings
             : new Array(jsonHeaders.length).fill("");
+
+        // Convert JSON objects to value rows (JSONB columns use builder expressions)
+        const valueRows = jsonData.map((item) => {
+          const values = jsonHeaders.map((header, idx) => {
+            const value = item[header];
+            return valueToSqlStringWithCasting(value, finalCastings[idx]);
+          });
+          return `(${values.join(", ")})`;
+        });
 
         // Generate SQL using shared script generation utility
         const sql = generateSqlScript({

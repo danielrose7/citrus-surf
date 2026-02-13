@@ -27,6 +27,7 @@ import {
   validateSqlInput,
   copyToClipboard as utilCopyToClipboard,
   showConversionSuccess,
+  valueToSqlStringWithCasting,
 } from "@/lib/utils/sql-generator";
 
 export default function SqlConverterPage() {
@@ -230,18 +231,17 @@ function SqlConverterTool() {
             ? state.columnMappings
             : csvHeaders.map((header) => header.toLowerCase().replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, ""));
 
-        const valueRows = dataRows.map((values) => {
-          const escapedValues = values.map((value) => {
-            const escaped = value.replace(/'/g, "''");
-            return `'${escaped}'`;
-          });
-          return `(${escapedValues.join(", ")})`;
-        });
-
         const finalCastings =
           state.columnCastings.length === csvHeaders.length
             ? state.columnCastings
             : new Array(csvHeaders.length).fill("");
+
+        const valueRows = dataRows.map((values) => {
+          const escapedValues = values.map((value, idx) =>
+            valueToSqlStringWithCasting(value, finalCastings[idx])
+          );
+          return `(${escapedValues.join(", ")})`;
+        });
 
         // Generate SQL using shared script generation utility
         const sql = generateSqlScript({

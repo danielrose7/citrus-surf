@@ -67,15 +67,15 @@ export function NavBar() {
             CSV to JSON
           </Link>
           <Link
-            href="/tools/json-diff"
+            href="/tools/id-generator"
             className={cn(
               "inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-              pathname === "/tools/json-diff"
+              pathname === "/tools/id-generator"
                 ? "bg-background text-foreground shadow-sm"
                 : "hover:bg-background/50 hover:text-foreground"
             )}
           >
-            JSON Diff
+            ID Generator
           </Link>
         </nav>
       </div>

@@ -162,6 +162,59 @@ function SqlConverterExplanation() {
         </li>
       </ul>
 
+      <h3>Type Casting</h3>
+      <p>
+        When using SCRIPT output formats, you can apply PostgreSQL type
+        casting to each column. Without casting, all values are inserted as
+        text strings. Casting tells PostgreSQL to interpret and validate
+        values as the correct type, catching errors early and ensuring data
+        integrity. Common castings include:
+      </p>
+      <ul>
+        <li>
+          <strong>::uuid</strong> - For UUID fields (validates format)
+        </li>
+        <li>
+          <strong>::timestamp / ::timestamptz</strong> - For datetime fields
+        </li>
+        <li>
+          <strong>::integer / ::numeric</strong> - For whole or decimal numbers
+        </li>
+        <li>
+          <strong>::boolean</strong> - For true/false values
+        </li>
+        <li>
+          <strong>::jsonb / ::json</strong> - For JSON data (see below)
+        </li>
+        <li>
+          <strong>Custom types</strong> - Any PostgreSQL type or enum
+        </li>
+      </ul>
+
+      <h3>JSONB &amp; JSON Columns</h3>
+      <p>
+        When you apply <code>::jsonb</code> or <code>::json</code> casting,
+        the tool does something special: instead of inserting a raw JSON
+        string like <code>&apos;{`{"city":"Portland"}`}&apos;::jsonb</code>,
+        it generates PostgreSQL builder expressions:
+      </p>
+      <pre className="bg-muted p-3 rounded text-sm">
+        {`-- Object values become:
+jsonb_build_object('city', 'Portland', 'state', 'OR')
+
+-- Array values become:
+jsonb_build_array(1, 2, 3)
+
+-- Nested structures are handled recursively:
+jsonb_build_object('address', jsonb_build_object('city', 'Portland'))`}
+      </pre>
+      <p>
+        This approach is more robust than string literals because PostgreSQL
+        validates each key and value individually, making it easier to spot
+        errors. It also handles quoting and escaping automatically, so you
+        don&apos;t have to worry about special characters breaking your SQL.
+      </p>
+
       <h3>Security Considerations</h3>
       <p>
         This tool processes all spreadsheet data locally in your browser.

@@ -16,7 +16,7 @@ import {
   FileText,
   FileJson,
   Table,
-  GitCompare,
+  Fingerprint,
   Code,
   Play,
   Sparkles,
@@ -191,27 +191,26 @@ function HomePage() {
 
         <Card className="flex flex-col">
           <CardHeader>
-            <GitCompare className="h-8 w-8 mb-2 text-primary" />
-            <CardTitle>JSON Diff Tool</CardTitle>
+            <Fingerprint className="h-8 w-8 mb-2 text-primary" />
+            <CardTitle>ID Generator</CardTitle>
             <CardDescription>
-              Compare two JSON objects and visualize the differences between
-              them.
+              Generate batches of UUIDs and ULIDs for your projects.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex-grow">
             <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-              <li>Side-by-side comparison</li>
-              <li>Highlight added, removed, and changed values</li>
-              <li>Collapsible nested objects</li>
+              <li>UUID v4, UUID v7, and ULID support</li>
+              <li>Generate up to 1,000 IDs at once</li>
+              <li>One-click copy to clipboard</li>
             </ul>
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full">
               <Link
-                href="/tools/json-diff"
+                href="/tools/id-generator"
                 className="flex items-center justify-center"
               >
-                Open JSON Diff Tool
+                Open ID Generator
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>

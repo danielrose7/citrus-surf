@@ -40,6 +40,12 @@ export function Footer() {
               >
                 Tools
               </Link>
+              <Link
+                href="/site-map"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Sitemap
+              </Link>
             </div>
           </div>
         </div>

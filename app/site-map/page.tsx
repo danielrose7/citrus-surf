@@ -5,7 +5,7 @@ import { SITE_URL } from "@/lib/constants/site";
 
 export const metadata: Metadata = {
   title: "Sitemap",
-  description: "Browse all pages and tools available on Data Tools Portal.",
+  description: "Browse all pages and tools available on Citrus Surf.",
   alternates: { canonical: `${SITE_URL}/site-map` },
 };
 

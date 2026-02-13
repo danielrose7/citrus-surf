@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     template: `%s | ${SITE_NAME}`,
   },
   description:
-    "Simple, powerful tools to help you work with your data more efficiently.",
+    "Free, private data tools that run in your browser. Convert CSV, JSON, SQL, generate UUIDs, and more. Life's short — go surfing.",
   openGraph: {
     type: "website",
     siteName: SITE_NAME,

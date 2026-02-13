@@ -12,7 +12,7 @@ export default function ToolsLayout({
   return (
     <div className="container mx-auto py-10 px-4 max-w-4xl">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-3xl font-bold">Data Tools Portal</h1>
+        <h1 className="text-3xl font-bold">Citrus Surf</h1>
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <Button variant="outline" size="sm" asChild>

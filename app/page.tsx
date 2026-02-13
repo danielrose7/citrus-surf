@@ -36,7 +36,7 @@ function HomePage() {
 
       <div className="text-center space-y-4 mb-12">
         <h1 className="text-4xl font-extrabold tracking-tight lg:text-5xl relative">
-          Data Tools Portal
+          Citrus Surf
           <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-orange-400 via-yellow-400 to-teal-400 rounded-full"></div>
         </h1>
         <p className="text-xl text-muted-foreground max-w-[700px] mx-auto">

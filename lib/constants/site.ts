@@ -1,5 +1,5 @@
 export const SITE_URL = "https://www.citrus.surf";
-export const SITE_NAME = "Data Tools Portal";
+export const SITE_NAME = "Citrus Surf";
 
 export function toolJsonLd(name: string, url: string, description: string) {
   return {

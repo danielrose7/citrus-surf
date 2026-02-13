@@ -112,3 +112,48 @@
     --tw-prose-bold: #d1d5db;
   }
 }
+
+/* Surf heading hover animation */
+@keyframes rideWaves {
+  0% {
+    transform: rotate(0deg) translateY(8px);
+  }
+  55% {
+    transform: rotate(36deg) translateY(18px);
+  }
+  100% {
+    transform: rotate(0deg) translateY(8px);
+  }
+}
+
+.surf-heading .surf-emoji {
+  display: inline-block;
+  vertical-align: baseline;
+}
+
+.surf-heading:hover .surf-emoji {
+  animation: rideWaves 555ms infinite;
+}
+
+.surf-heading {
+  display: inline-block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.surf-heading:hover {
+  text-decoration: none;
+}
+
+.surf-heading .surf-label {
+  display: inline;
+  background-repeat: no-repeat;
+  background-position: 0 100%;
+  padding-bottom: 14px;
+  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 20'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='300' y2='0' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23fb923c'/%3E%3Cstop offset='.5' stop-color='%23facc15'/%3E%3Cstop offset='1' stop-color='%235eead4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cline x1='0' y1='14' x2='300' y2='14' stroke='url(%23g)' stroke-width='2.5'/%3E%3C/svg%3E");
+  background-size: 100% 20px;
+}
+
+.surf-heading:hover .surf-label {
+  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 20'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='600' y2='0' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23fb923c'/%3E%3Cstop offset='.17' stop-color='%23facc15'/%3E%3Cstop offset='.33' stop-color='%235eead4'/%3E%3Cstop offset='.5' stop-color='%23fb923c'/%3E%3Cstop offset='.67' stop-color='%23facc15'/%3E%3Cstop offset='.83' stop-color='%235eead4'/%3E%3Cstop offset='1' stop-color='%23fb923c'/%3E%3CanimateTransform attributeName='gradientTransform' type='translate' from='0' to='-300' dur='3s' repeatCount='indefinite'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cstyle%3E.w{animation:s .555s linear infinite}@keyframes s{from{transform:translateX(0)}to{transform:translateX(-50px)}}%3C/style%3E%3Cpath fill='none' stroke='url(%23g)' stroke-width='2.5' class='w' d='M-50,14 c12.5,0,12.5,-8,25,-8 s12.5,8,25,8 c12.5,0,12.5,-8,25,-8 s12.5,8,25,8 c12.5,0,12.5,-8,25,-8 s12.5,8,25,8 c12.5,0,12.5,-8,25,-8 s12.5,8,25,8 c12.5,0,12.5,-8,25,-8 s12.5,8,25,8 c12.5,0,12.5,-8,25,-8 s12.5,8,25,8 c12.5,0,12.5,-8,25,-8 s12.5,8,25,8 c12.5,0,12.5,-8,25,-8 s12.5,8,25,8'/%3E%3C/svg%3E");
+}

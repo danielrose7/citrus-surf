@@ -18,6 +18,10 @@ const sections = [
     ],
   },
   {
+    heading: "Blog",
+    links: [{ href: "/blog", label: "All Posts" }],
+  },
+  {
     heading: "Tools",
     links: [
       { href: "/tools/id-generator", label: "UUID & ULID Generator" },

@@ -284,6 +284,15 @@ function HomePage() {
           </div>
         </div>
       </div>
+
+      <div className="mt-10 text-center">
+        <Link
+          href="/blog"
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Read our blog for tips and updates &rarr;
+        </Link>
+      </div>
     </div>
   );
 }

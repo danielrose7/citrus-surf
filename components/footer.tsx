@@ -29,6 +29,12 @@ export function Footer() {
                 Home
               </Link>
               <Link
+                href="/blog"
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Blog
+              </Link>
+              <Link
                 href="/playground"
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >

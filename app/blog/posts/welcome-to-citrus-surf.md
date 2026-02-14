@@ -1,6 +1,6 @@
 ---
 title: Why Citrus Surf
-date: "2026-02-13"
+date: "2025-07-04"
 description: Why we built these tools and what Citrus Surf is about.
 tags: [announcements]
 author: Daniel Rose w/ Claude

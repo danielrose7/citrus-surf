@@ -233,7 +233,7 @@ function HomePage() {
                   className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 border-orange-200 dark:border-orange-800"
                 >
                   <Sparkles className="h-3 w-3 mr-1" />
-                  Beta
+                  Alpha
                 </Badge>
               </div>
               <CardDescription className="text-lg max-w-[600px] mx-auto mb-4">

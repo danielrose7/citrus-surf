@@ -78,7 +78,7 @@ function PlaygroundContent({
               className="bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200 border-orange-200 dark:border-orange-800"
             >
               <Sparkles className="h-3 w-3 mr-1" />
-              Beta
+              Alpha
             </Badge>
           </div>
           <blockquote className="text-base text-muted-foreground max-w-[600px] border-l-4 border-primary/30 pl-4 py-2 italic mt-2">

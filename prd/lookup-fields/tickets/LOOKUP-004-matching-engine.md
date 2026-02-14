@@ -1,3 +1,11 @@
+---
+id: LOOKUP-004
+title: Lookup Matching Engine
+status: done
+effort: L
+phase: 2
+---
+
 # LOOKUP-004: Lookup Matching Engine
 
 ## Context

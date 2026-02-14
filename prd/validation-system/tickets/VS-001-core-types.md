@@ -1,3 +1,11 @@
+---
+id: VS-001
+title: Core Validation Types and Metadata Schema
+status: done
+effort: M
+phase: 1
+---
+
 # VS-001: Core Validation Types and Metadata Schema
 
 ## Context
@@ -55,17 +63,20 @@ Create the foundational TypeScript types and interfaces for the validation syste
 ## Implementation Notes
 
 **Files Created:**
+
 - `lib/types/validation.ts` - Core types and utility functions
 - `lib/types/validation.test.ts` - Type validation tests (29 tests)
 - `lib/types/validation-integration.test.ts` - TableRow integration tests (5 tests)
 
 **Key Features:**
+
 - Comprehensive type system with enums for validation rules and status
 - Type guards for runtime validation of complex types
 - Utility functions for creating empty states and converting results to metadata
 - Seamless integration with existing TableRow and Redux state management
 
 **Performance:**
+
 - All utility functions optimized for large dataset handling
 - Type guards provide safe runtime type checking
 - Metadata structures designed for efficient serialization and storage

@@ -1,3 +1,11 @@
+---
+id: VS-008
+title: Error Filtering and Navigation
+status: todo
+effort: L
+phase: 3
+---
+
 # VS-008: Error Filtering and Navigation
 
 ## Context

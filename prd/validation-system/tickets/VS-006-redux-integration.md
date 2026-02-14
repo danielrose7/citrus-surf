@@ -1,3 +1,11 @@
+---
+id: VS-006
+title: Redux Validation State Integration
+status: done
+effort: M
+phase: 1
+---
+
 # VS-006: Redux Validation State Integration
 
 ## Context

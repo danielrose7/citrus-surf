@@ -1,3 +1,11 @@
+---
+id: VS-010
+title: Validation Dashboard and Reporting
+status: todo
+effort: L
+phase: 4
+---
+
 # VS-010: Validation Dashboard and Reporting
 
 ## Context

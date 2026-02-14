@@ -1,3 +1,11 @@
+---
+id: LOOKUP-002
+title: Reference Data Manager
+status: done
+effort: M
+phase: 1
+---
+
 # LOOKUP-002: Reference Data Manager
 
 ## Context

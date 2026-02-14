@@ -1,3 +1,11 @@
+---
+id: LOOKUP-007
+title: Lookup Editable Cell Component
+status: done
+effort: L
+phase: 3
+---
+
 # LOOKUP-007: Lookup Editable Cell Component ✅ COMPLETE
 
 ## Context

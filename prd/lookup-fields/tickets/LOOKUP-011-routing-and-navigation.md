@@ -1,3 +1,11 @@
+---
+id: LOOKUP-011
+title: Routing and Navigation Patterns
+status: todo
+effort: M
+phase: 3
+---
+
 # LOOKUP-011: Routing and Navigation Patterns
 
 ## Context

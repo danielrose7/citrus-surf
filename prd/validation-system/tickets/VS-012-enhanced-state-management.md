@@ -1,3 +1,11 @@
+---
+id: VS-012
+title: Enhanced Validation State Management
+status: todo
+effort: M
+phase: 4
+---
+
 # VS-012: Enhanced Validation State Management
 
 ## Context

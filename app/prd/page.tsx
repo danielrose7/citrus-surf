@@ -18,38 +18,51 @@ function readMarkdownFile(filePath: string): string {
   }
 }
 
-function getAvailableProjects(): Array<{ name: string; displayName: string; description: string }> {
+function getAvailableProjects(): Array<{
+  name: string;
+  displayName: string;
+  description: string;
+}> {
   const prdPath = path.join(process.cwd(), "prd");
-  
+
   try {
     const items = fs.readdirSync(prdPath, { withFileTypes: true });
-    const projects: Array<{ name: string; displayName: string; description: string }> = [];
-    
+    const projects: Array<{
+      name: string;
+      displayName: string;
+      description: string;
+    }> = [];
+
     for (const item of items) {
       if (item.isDirectory()) {
         const projectPath = path.join(prdPath, item.name);
         const prdFile = path.join(projectPath, "prd.md");
-        
+
         // Only include projects that have a prd.md file
         if (fs.existsSync(prdFile)) {
           const displayName = item.name
-            .split('-')
+            .split("-")
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-            .join(' ');
-          
+            .join(" ");
+
           // Try to extract description from the PRD file
           let description = "Product requirements and implementation guide";
           try {
             const prdContent = fs.readFileSync(prdFile, "utf8");
-            const descriptionMatch = prdContent.match(/^## Overview\s+(.+?)(?=\n\n|\n##|$)/ms);
+            const descriptionMatch = prdContent.match(
+              /^## Overview\s+(.+?)(?=\n\n|\n##|$)/ms
+            );
             if (descriptionMatch) {
-              description = descriptionMatch[1].trim().replace(/\n/g, ' ').substring(0, 150);
+              description = descriptionMatch[1]
+                .trim()
+                .replace(/\n/g, " ")
+                .substring(0, 150);
               if (description.length === 150) description += "...";
             }
           } catch {
             // Use default description if we can't read the file
           }
-          
+
           projects.push({
             name: item.name,
             displayName,
@@ -58,7 +71,7 @@ function getAvailableProjects(): Array<{ name: string; displayName: string; desc
         }
       }
     }
-    
+
     return projects.sort((a, b) => a.displayName.localeCompare(b.displayName));
   } catch {
     return [];
@@ -131,14 +144,31 @@ export default function PRDOverview() {
           __html: formatMarkdown(content),
         }}
       />
-      
+
+      <div className="mt-8">
+        <Link
+          href="/roadmap"
+          className="block p-6 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors"
+        >
+          <h2 className="text-xl font-medium mb-2 text-gray-900 dark:text-gray-100">
+            Roadmap
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 text-sm">
+            Kanban board showing ticket status across all projects
+          </p>
+          <div className="mt-3 text-blue-600 dark:text-blue-400 text-sm font-medium">
+            View Roadmap →
+          </div>
+        </Link>
+      </div>
+
       {projects.length > 0 && (
         <div className="mt-8">
           <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-gray-100">
             Available Project PRDs
           </h2>
           <div className="grid gap-4 md:grid-cols-2">
-            {projects.map((project) => (
+            {projects.map(project => (
               <Link
                 key={project.name}
                 href={`/prd/${project.name}`}

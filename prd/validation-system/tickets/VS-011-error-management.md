@@ -1,3 +1,11 @@
+---
+id: VS-011
+title: Error Management Actions
+status: todo
+effort: M
+phase: 4
+---
+
 # VS-011: Error Management Actions
 
 ## Context

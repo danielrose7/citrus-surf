@@ -1,3 +1,11 @@
+---
+id: LOOKUP-005
+title: Data Processing Integration
+status: done
+effort: L
+phase: 2
+---
+
 # LOOKUP-005: Data Processing Integration
 
 ## Context

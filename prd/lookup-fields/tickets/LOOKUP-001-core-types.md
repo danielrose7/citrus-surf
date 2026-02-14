@@ -1,3 +1,11 @@
+---
+id: LOOKUP-001
+title: Core Type Definitions
+status: done
+effort: S
+phase: 1
+---
+
 # LOOKUP-001: Core Type Definitions
 
 ## Context

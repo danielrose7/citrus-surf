@@ -1,3 +1,11 @@
+---
+id: LOOKUP-006
+title: Enhanced Validation System
+status: done
+effort: M
+phase: 1
+---
+
 # LOOKUP-006: Enhanced Validation System
 
 ## Context

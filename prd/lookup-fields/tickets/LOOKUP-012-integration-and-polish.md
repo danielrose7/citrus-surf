@@ -1,3 +1,11 @@
+---
+id: LOOKUP-012
+title: Integration and Polish
+status: todo
+effort: L
+phase: 4
+---
+
 # LOOKUP-012: Integration and Polish
 
 ## Context

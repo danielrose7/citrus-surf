@@ -1,3 +1,11 @@
+---
+id: LOOKUP-010
+title: Fuzzy Match Review UI
+status: todo
+effort: M
+phase: 4
+---
+
 # LOOKUP-010: Fuzzy Match Review UI
 
 ## Context

@@ -1,3 +1,11 @@
+---
+id: LOOKUP-003
+title: Target Shapes Integration
+status: done
+effort: M
+phase: 1
+---
+
 # LOOKUP-003: Target Shapes Integration
 
 ## Context

@@ -1,3 +1,11 @@
+---
+id: VS-004
+title: Data Type Validation Rule
+status: done
+effort: M
+phase: 2
+---
+
 # VS-004: Data Type Validation Rule
 
 ## Context

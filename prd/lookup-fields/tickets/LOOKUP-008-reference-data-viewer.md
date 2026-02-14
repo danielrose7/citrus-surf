@@ -1,3 +1,11 @@
+---
+id: LOOKUP-008
+title: Reference Data Viewer & Editor
+status: todo
+effort: L
+phase: 3
+---
+
 # LOOKUP-008: Reference Data Viewer & Editor
 
 ## Context

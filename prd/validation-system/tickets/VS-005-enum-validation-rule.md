@@ -1,3 +1,11 @@
+---
+id: VS-005
+title: Enum Validation Rule
+status: done
+effort: M
+phase: 2
+---
+
 # VS-005: Enum Validation Rule
 
 ## Context
@@ -45,7 +53,7 @@ Implement enum validation that ensures values match predefined options in enum f
 ## Testing Requirements
 
 - [ ] Test exact value matching (case sensitive/insensitive)
-- [ ] Test exact label matching 
+- [ ] Test exact label matching
 - [ ] Test fuzzy matching with various similarity thresholds
 - [ ] Test suggestion ranking and confidence scoring
 - [ ] Test performance with large enum option sets (100+ options)

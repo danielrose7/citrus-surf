@@ -1,3 +1,11 @@
+---
+id: VS-007
+title: Validation Status UI Indicators
+status: done
+effort: M
+phase: 3
+---
+
 # VS-007: Validation Status UI Indicators
 
 ## Context

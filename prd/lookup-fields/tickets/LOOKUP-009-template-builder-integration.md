@@ -1,3 +1,11 @@
+---
+id: LOOKUP-009
+title: Template Builder Integration
+status: done
+effort: M
+phase: 4
+---
+
 # LOOKUP-009: Template Builder Integration
 
 ## Context

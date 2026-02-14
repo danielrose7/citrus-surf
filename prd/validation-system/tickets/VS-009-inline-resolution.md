@@ -1,3 +1,11 @@
+---
+id: VS-009
+title: Inline Error Resolution Interface
+status: todo
+effort: M
+phase: 3
+---
+
 # VS-009: Inline Error Resolution Interface
 
 ## Context

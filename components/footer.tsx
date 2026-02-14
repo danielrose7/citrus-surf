@@ -14,9 +14,14 @@ export function Footer() {
 
           {/* Center Column - Location */}
           <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              Made in Silverton, CO
-            </p>
+            <a
+              href="https://gobloom.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mountain-link text-sm text-muted-foreground"
+            >
+              <span className="mountain-label">Made in Silverton, CO</span>
+            </a>
           </div>
 
           {/* Right Column - Navigation */}

@@ -2,7 +2,7 @@ import { unified } from "unified";
 import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkRehype from "remark-rehype";
-import rehypeSanitize from "rehype-sanitize";
+import rehypeHighlight from "rehype-highlight";
 import rehypeStringify from "rehype-stringify";
 import type { Element, Root } from "hast";
 
@@ -74,7 +74,7 @@ function rehypeAddTailwindClasses() {
             element.properties = {
               ...element.properties,
               className:
-                "bg-gray-100 dark:bg-gray-800 p-4 rounded-lg overflow-x-auto mb-4",
+                "bg-gray-900 p-4 rounded-lg overflow-x-auto mb-4",
             };
             // Style the code inside pre
             if (element.children) {
@@ -82,7 +82,7 @@ function rehypeAddTailwindClasses() {
                 if (child.type === "element" && child.tagName === "code") {
                   child.properties = {
                     ...child.properties,
-                    className: "text-sm font-mono",
+                    className: "text-sm font-mono text-gray-100",
                   };
                 }
               });
@@ -211,8 +211,8 @@ export async function processMarkdown(content: string): Promise<string> {
     .use(remarkParse) // Parse markdown
     .use(remarkGfm) // Support GitHub Flavored Markdown (tables, task lists, etc.)
     .use(remarkRehype) // Convert to HTML AST
+    .use(rehypeHighlight, { detect: true }) // Syntax highlighting
     .use(rehypeAddTailwindClasses) // Add our custom Tailwind classes
-    .use(rehypeSanitize) // Sanitize HTML
     .use(rehypeStringify) // Convert to HTML string
     .process(content);
 

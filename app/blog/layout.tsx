@@ -1,5 +1,6 @@
 import type React from "react";
 import Link from "next/link";
+import "highlight.js/styles/github-dark.css";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { getRecentPosts, getPostsByMonth, getAllTags } from "@/lib/utils/blog";
 

@@ -42,7 +42,15 @@ export default function SitemapPage() {
     <>
       <NavBar />
       <div className="container mx-auto px-4 py-12 max-w-3xl">
-        <h1 className="text-3xl font-bold mb-8">Sitemap</h1>
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-3xl font-bold">Sitemap</h1>
+          <Link
+            href="/sitemap.xml"
+            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            View as XML
+          </Link>
+        </div>
         {sections.map((section) => (
           <div key={section.heading} className="mb-8">
             <h2 className="text-xl font-semibold mb-3">{section.heading}</h2>

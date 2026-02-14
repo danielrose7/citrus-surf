@@ -118,7 +118,7 @@
   0% {
     transform: rotate(0deg) translateY(8px);
   }
-  55% {
+  62% {
     transform: rotate(36deg) translateY(18px);
   }
   100% {
@@ -152,6 +152,19 @@
   padding-bottom: 14px;
   background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 20'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='300' y2='0' gradientUnits='userSpaceOnUse'%3E%3Cstop offset='0' stop-color='%23fb923c'/%3E%3Cstop offset='.5' stop-color='%23facc15'/%3E%3Cstop offset='1' stop-color='%235eead4'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cline x1='0' y1='14' x2='300' y2='14' stroke='url(%23g)' stroke-width='2.5'/%3E%3C/svg%3E");
   background-size: 100% 20px;
+}
+
+/* Blog tag links */
+.blog-tag {
+  font-size: 0.8125rem;
+  color: hsl(var(--muted-foreground));
+  text-decoration: none;
+  transition: color 150ms;
+}
+
+.blog-tag:hover {
+  color: hsl(var(--foreground));
+  text-decoration: underline;
 }
 
 .surf-heading:hover .surf-label {

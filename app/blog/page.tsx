@@ -7,7 +7,7 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { getAllPosts } from "@/lib/utils/blog";
-import { SITE_URL } from "@/lib/constants/site";
+import { SITE_URL, blogListJsonLd } from "@/lib/constants/site";
 
 export const metadata: Metadata = {
   title: "Blog | Citrus Surf",
@@ -27,10 +27,17 @@ export default function BlogIndex() {
   const posts = getAllPosts();
 
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(blogListJsonLd()),
+        }}
+      />
     <div>
       <h1 className="text-3xl font-bold mb-6">Blog</h1>
       <div className="space-y-4">
-        {posts.map((post) => (
+        {posts.map(post => (
           <Link key={post.slug} href={`/blog/${post.slug}`} className="block">
             <Card className="hover:shadow-md transition-shadow">
               <CardHeader>
@@ -42,7 +49,7 @@ export default function BlogIndex() {
                       <span>{post.author}</span>
                     </>
                   )}
-                  {post.tags.map((tag) => (
+                  {post.tags.map(tag => (
                     <Link
                       key={tag}
                       href={`/blog/tag/${tag}`}
@@ -60,5 +67,6 @@ export default function BlogIndex() {
         ))}
       </div>
     </div>
+    </>
   );
 }

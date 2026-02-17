@@ -8,14 +8,14 @@ import {
   getPostBySlug,
   getAdjacentPosts,
 } from "@/lib/utils/blog";
-import { SITE_URL } from "@/lib/constants/site";
+import { SITE_URL, blogPostJsonLd } from "@/lib/constants/site";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
 }
 
 export function generateStaticParams() {
-  return getPostSlugs().map((slug) => ({ slug }));
+  return getPostSlugs().map(slug => ({ slug }));
 }
 
 export async function generateMetadata({
@@ -47,6 +47,22 @@ export default async function BlogPostPage({ params }: PageProps) {
   const { prev, next } = getAdjacentPosts(slug);
 
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify(
+            blogPostJsonLd({
+              title: post.title,
+              description: post.description,
+              date: post.date,
+              author: post.author,
+              slug,
+              tags: post.tags,
+            })
+          ),
+        }}
+      />
     <article>
       <Link
         href="/blog"
@@ -65,7 +81,7 @@ export default async function BlogPostPage({ params }: PageProps) {
               <span>{post.author}</span>
             </>
           )}
-          {post.tags.map((tag) => (
+          {post.tags.map(tag => (
             <Link key={tag} href={`/blog/tag/${tag}`} className="blog-tag">
               #{tag}
             </Link>
@@ -102,5 +118,6 @@ export default async function BlogPostPage({ params }: PageProps) {
         )}
       </nav>
     </article>
+    </>
   );
 }
